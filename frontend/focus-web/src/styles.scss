@@ -1,0 +1,393 @@
+@use '@angular/cdk/overlay-prebuilt.css';
+
+/* ============================================================================================
+   Design tokens
+   Light/dark come from <html data-theme>, the time-of-day palette from <html data-tod>.
+   ============================================================================================ */
+:root {
+  --font-display: 'Nunito Variable', 'Nunito', ui-rounded, system-ui, sans-serif;
+  --font-ui: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Tag accents */
+  --tag-lavender: #a18cd1;
+  --tag-mint: #4fc6a0;
+  --tag-coral: #ff8a7a;
+  --tag-honey: #f2b03d;
+  --tag-sky: #5aa9f0;
+  --tag-rose: #f06fa4;
+
+  --success: #34c38f;
+  --danger: #ef5b6b;
+
+  /* Light theme (default) */
+  --bg-1: #ffe9e3;
+  --bg-2: #fbe3f1;
+  --bg-3: #e6e4ff;
+  --blob-1: #ffb199;
+  --blob-2: #c38bff;
+  --blob-3: #8fd3f4;
+
+  --surface: rgba(255, 255, 255, 0.62);
+  --surface-strong: rgba(255, 255, 255, 0.86);
+  --surface-border: rgba(255, 255, 255, 0.75);
+  --surface-hover: rgba(255, 255, 255, 0.9);
+  --shadow: 0 10px 30px -12px rgba(92, 55, 120, 0.28);
+  --shadow-lift: 0 24px 50px -18px rgba(92, 55, 120, 0.45);
+
+  --text: #2d2340;
+  --text-muted: #6f6485;
+  --text-faint: #9a90ad;
+
+  --accent-1: #ff8e9e;
+  --accent-2: #a17cff;
+  --accent-grad: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  --focus-ring: 0 0 0 3px rgba(161, 124, 255, 0.45);
+
+  color-scheme: light;
+}
+
+/* Time-of-day palettes (light) */
+:root[data-tod='morning'] {
+  --bg-1: #fff1e0; --bg-2: #ffe3e3; --bg-3: #f3e6ff;
+  --blob-1: #ffc09f; --blob-2: #ff9a9e; --blob-3: #fcd5ce;
+  --accent-1: #ff9a8b; --accent-2: #ff6a88;
+}
+:root[data-tod='afternoon'] {
+  --bg-1: #e8f4ff; --bg-2: #eef0ff; --bg-3: #fff0f6;
+  --blob-1: #89f7fe; --blob-2: #66a6ff; --blob-3: #c2e9fb;
+  --accent-1: #4facfe; --accent-2: #8e7dff;
+}
+:root[data-tod='evening'] {
+  --bg-1: #ffe6d9; --bg-2: #fbe0ef; --bg-3: #e4dcff;
+  --blob-1: #ffb199; --blob-2: #c38bff; --blob-3: #ff8e9e;
+  --accent-1: #ff8e9e; --accent-2: #a17cff;
+}
+:root[data-tod='night'] {
+  --bg-1: #e9e6ff; --bg-2: #e3e9ff; --bg-3: #f2e8ff;
+  --blob-1: #a18cd1; --blob-2: #7f9cf5; --blob-3: #fbc2eb;
+  --accent-1: #8e7dff; --accent-2: #5f72ff;
+}
+
+/* Dark theme */
+:root[data-theme='dark'] {
+  --bg-1: #120f26;
+  --bg-2: #1b1638;
+  --bg-3: #0f1b3d;
+  --blob-1: #5b3a9b;
+  --blob-2: #2b4d9e;
+  --blob-3: #8a3f7a;
+
+  --surface: rgba(38, 32, 72, 0.55);
+  --surface-strong: rgba(44, 37, 84, 0.9);
+  --surface-border: rgba(255, 255, 255, 0.09);
+  --surface-hover: rgba(58, 49, 105, 0.75);
+  --shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 26px 56px -18px rgba(0, 0, 0, 0.75);
+
+  --text: #f2eefe;
+  --text-muted: #b5abd3;
+  --text-faint: #7f76a3;
+
+  --focus-ring: 0 0 0 3px rgba(190, 170, 255, 0.45);
+  color-scheme: dark;
+}
+:root[data-theme='dark'][data-tod='morning'] { --blob-1: #7a3e6b; --blob-3: #9b4f5e; --accent-1: #ff9a8b; --accent-2: #ff6a88; }
+:root[data-theme='dark'][data-tod='afternoon'] { --blob-1: #2f5f9e; --blob-3: #3b7a9e; --accent-1: #5fb6ff; --accent-2: #9d8cff; }
+:root[data-theme='dark'][data-tod='evening'] { --blob-1: #6b3a8b; --blob-3: #9b4a6e; --accent-1: #ff8e9e; --accent-2: #b08cff; }
+:root[data-theme='dark'][data-tod='night'] { --accent-1: #9d8cff; --accent-2: #6a7dff; }
+
+/* ============================================================================================
+   Base
+   ============================================================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg-1);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.6s ease, color 0.4s ease;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent-2) 35%, transparent);
+}
+
+/* ============================================================================================
+   Reusable building blocks
+   ============================================================================================ */
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.gradient-text {
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease, background 0.25s ease, opacity 0.2s;
+
+  &:active {
+    transform: scale(0.96);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+  }
+}
+
+.btn-primary {
+  color: #fff;
+  background: var(--accent-grad);
+  background-size: 160% 160%;
+  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent-2) 80%, transparent);
+
+  &:hover:not(:disabled) {
+    background-position: 100% 0;
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px -10px color-mix(in srgb, var(--accent-2) 90%, transparent);
+  }
+}
+
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-hover);
+  }
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 17px;
+  transition: background 0.2s, color 0.2s, transform 0.25s var(--ease-spring);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--text);
+    transform: scale(1.08);
+  }
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.input {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-strong);
+  transition: box-shadow 0.2s, border-color 0.2s;
+
+  &::placeholder {
+    color: var(--text-faint);
+  }
+  &:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent-2) 60%, transparent);
+    box-shadow: var(--focus-ring);
+  }
+}
+
+textarea.input {
+  height: auto;
+  min-height: 90px;
+  padding: 12px 16px;
+  resize: vertical;
+}
+
+.chip {
+  --chip: var(--tag-lavender);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--chip) 70%, var(--text));
+  background: color-mix(in srgb, var(--chip) 20%, transparent);
+  white-space: nowrap;
+
+  &[data-color='lavender'] { --chip: var(--tag-lavender); }
+  &[data-color='mint'] { --chip: var(--tag-mint); }
+  &[data-color='coral'] { --chip: var(--tag-coral); }
+  &[data-color='honey'] { --chip: var(--tag-honey); }
+  &[data-color='sky'] { --chip: var(--tag-sky); }
+  &[data-color='rose'] { --chip: var(--tag-rose); }
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-strong);
+  font: 600 11px/18px var(--font-ui);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ============================================================================================
+   Drag & drop (Angular CDK) — global because previews are attached to <body>
+   ============================================================================================ */
+.cdk-drag-preview {
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  transform-origin: center;
+  rotate: 2deg;
+  scale: 1.03;
+  opacity: 0.96;
+  z-index: 1000 !important;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+  filter: saturate(0.4);
+}
+
+.cdk-drag-animating,
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+  transition: transform 260ms var(--ease-out);
+}
+
+body.cdk-dragging,
+body.cdk-dragging * {
+  cursor: grabbing !important;
+}
+
+/* ============================================================================================
+   Dialogs (Angular CDK)
+   ============================================================================================ */
+.focus-backdrop {
+  background: rgba(30, 20, 50, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.focus-dialog {
+  max-width: calc(100vw - 32px);
+  animation: dialog-in 0.35s var(--ease-spring);
+}
+
+/* ============================================================================================
+   Motion
+   ============================================================================================ */
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fade-out-shrink {
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+.enter-fade-up {
+  animation: fade-up 0.4s var(--ease-out) both;
+}
+
+.leave-fade {
+  animation: fade-out-shrink 0.2s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

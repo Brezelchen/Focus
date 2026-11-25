@@ -1,0 +1,685 @@
+:host {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  pointer-events: none;
+  background: #2a2238;
+}
+
+.scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+// ---------- time of day: sky ----------
+.sky,
+.sun,
+.moon,
+.stars,
+.clouds,
+.rain,
+.window-light,
+.ambient,
+.lamp-light,
+.laptop-glow,
+.screen-glow,
+.bulb-glow {
+  transition: opacity 2s ease;
+}
+
+.sky,
+.sun,
+.moon,
+.stars,
+.clouds,
+.rain {
+  opacity: 0;
+}
+
+.cloud {
+  fill: #fff;
+}
+
+.hill-back,
+.hill-front,
+.cloud,
+.ambient,
+.window-light {
+  transition:
+    fill 2s ease,
+    opacity 2s ease;
+}
+
+.rain {
+  stroke: #e4ecff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.ambient {
+  mix-blend-mode: multiply;
+  fill: #fff;
+  opacity: 0;
+}
+
+.lamp-light,
+.laptop-glow,
+.candle-light,
+.bulbs {
+  mix-blend-mode: screen;
+}
+
+.lamp-cone {
+  opacity: 0.07;
+}
+
+.bulb-glow {
+  fill: url(#ls-bulb-glow);
+  opacity: 0.55;
+}
+
+.window-light {
+  opacity: 0.16;
+}
+
+.screen-glow {
+  opacity: 0.15;
+}
+
+.laptop-glow {
+  opacity: 0.25;
+}
+
+// morning
+:host([data-time='morning']) {
+  .sky-morning,
+  .sun-morning,
+  .clouds {
+    opacity: 1;
+  }
+  .cloud {
+    fill: #fff3ea;
+    opacity: 0.85;
+  }
+  .hill-back {
+    fill: #e2a596;
+  }
+  .hill-front {
+    fill: #c4857f;
+  }
+  .ambient {
+    fill: #ffe2c6;
+    opacity: 0.5;
+  }
+  .window-light {
+    fill: #ffe7c4;
+    opacity: 0.22;
+  }
+  .lamp-light {
+    opacity: 0.4;
+  }
+  .bulb-glow {
+    opacity: 0.35;
+  }
+}
+
+// afternoon
+:host([data-time='afternoon']) {
+  .sky-afternoon,
+  .sun-afternoon,
+  .clouds {
+    opacity: 1;
+  }
+  .cloud {
+    fill: #fff;
+    opacity: 0.9;
+  }
+  .hill-back {
+    fill: #9cc2a0;
+  }
+  .hill-front {
+    fill: #7aa47f;
+  }
+  .window-light {
+    opacity: 0.24;
+  }
+  .lamp-light {
+    opacity: 0.3;
+  }
+  .bulb-glow {
+    opacity: 0.3;
+  }
+}
+
+// evening
+:host([data-time='evening']) {
+  .sky-evening,
+  .sun-evening,
+  .clouds {
+    opacity: 1;
+  }
+  .rain {
+    opacity: 0.35;
+  }
+  .cloud {
+    fill: #f3b2a0;
+    opacity: 0.7;
+  }
+  .hill-back {
+    fill: #8a5a7e;
+  }
+  .hill-front {
+    fill: #66425f;
+  }
+  .ambient {
+    fill: #c79aa6;
+    opacity: 0.55;
+  }
+  .window-light {
+    fill: #ffb27a;
+    opacity: 0.14;
+  }
+  .lamp-light {
+    opacity: 0.85;
+  }
+  .laptop-glow {
+    opacity: 0.4;
+  }
+  .screen-glow {
+    opacity: 0.3;
+  }
+}
+
+// night
+:host([data-time='night']) {
+  .sky-night,
+  .moon,
+  .stars {
+    opacity: 1;
+  }
+  .rain {
+    opacity: 0.45;
+  }
+  .hill-back {
+    fill: #2a3058;
+  }
+  .hill-front {
+    fill: #1b2043;
+  }
+  .ambient {
+    fill: #4a4a82;
+    opacity: 0.85;
+  }
+  .window-light {
+    opacity: 0;
+  }
+  .lamp-light {
+    opacity: 1;
+  }
+  .lamp-cone {
+    opacity: 0.1;
+  }
+  .bulb-glow {
+    opacity: 0.85;
+  }
+  .laptop-glow {
+    opacity: 0.6;
+  }
+  .screen-glow {
+    opacity: 0.55;
+  }
+}
+
+// ---------- animations ----------
+// shared: every animated SVG piece pivots in its own box unless overridden
+.cloud,
+.rain-sheet,
+.stars > *,
+.steam > *,
+.sway,
+.girl-upper,
+.girl-head,
+.eye,
+.paw,
+.pet,
+.pet-body,
+.pet-tail,
+.pet-ear,
+.lamp-glow,
+.bulb-glow,
+.flame,
+.candle-glow,
+.heart,
+.sparkle {
+  transform-box: fill-box;
+}
+
+.cloud {
+  animation: drift 90s linear infinite;
+}
+.cloud-2 {
+  animation-duration: 120s;
+  animation-delay: -50s;
+}
+.cloud-3 {
+  animation-duration: 105s;
+  animation-delay: -80s;
+}
+@keyframes drift {
+  from {
+    transform: translateX(-260px);
+  }
+  to {
+    transform: translateX(460px);
+  }
+}
+
+.rain-sheet {
+  animation: rain 1.6s linear infinite;
+}
+@keyframes rain {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-60px, 400px);
+  }
+}
+
+.stars > * {
+  transform-origin: center;
+  animation: twinkle 4s ease-in-out infinite alternate;
+  @for $i from 1 through 14 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{-$i * 0.73}s;
+      animation-duration: #{3 + ($i % 4)}s;
+    }
+  }
+}
+@keyframes twinkle {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+
+.steam > * {
+  opacity: 0;
+  transform-origin: 50% 100%;
+  animation: steam 4.8s ease-out infinite;
+}
+.steam-2 {
+  animation-delay: -1.6s;
+}
+.steam-3 {
+  animation-delay: -3.2s;
+}
+@keyframes steam {
+  0% {
+    transform: translateY(14px) scaleY(0.6);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(-34px) scaleY(1.1);
+    opacity: 0;
+  }
+}
+
+.sway {
+  transform-origin: 50% 100%;
+  animation: sway 8s ease-in-out infinite alternate;
+}
+.sway-slow {
+  animation-duration: 6s;
+}
+.sway-vine {
+  transform-origin: 50% 0%;
+  animation-name: sway-vine;
+  animation-duration: 9s;
+}
+.sway-snake {
+  animation-duration: 10s;
+  animation-delay: -4s;
+}
+@keyframes sway {
+  from {
+    transform: rotate(-1.5deg);
+  }
+  to {
+    transform: rotate(1.5deg);
+  }
+}
+@keyframes sway-vine {
+  from {
+    transform: rotate(1deg) skewX(-1deg);
+  }
+  to {
+    transform: rotate(-1deg) skewX(1deg);
+  }
+}
+
+// girl
+.girl-upper {
+  transform-origin: 50% 100%;
+  animation: breathe 5s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1.5px) scaleY(1.008);
+  }
+}
+
+.girl-head {
+  transform-origin: 50% 88%;
+  animation: head-tilt 14s ease-in-out infinite;
+}
+@keyframes head-tilt {
+  0%,
+  35%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45%,
+  70% {
+    transform: rotate(-3deg);
+  }
+}
+
+.eye {
+  transform-origin: center;
+  animation: blink 6.5s infinite;
+}
+@keyframes blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+.paw {
+  transform-origin: center;
+  animation: type 2.8s ease-in-out infinite;
+}
+.paw-r {
+  animation-delay: -0.35s;
+}
+@keyframes type {
+  0%,
+  40%,
+  100% {
+    transform: translateY(0);
+  }
+  10%,
+  30% {
+    transform: translateY(-2.5px);
+  }
+  20% {
+    transform: translateY(0.5px);
+  }
+}
+
+// pet (dog or cat)
+.pet {
+  transform-origin: 50% 100%;
+}
+.pet-body {
+  transform-origin: 50% 100%;
+  animation: pet-breathe 3.6s ease-in-out infinite;
+}
+@keyframes pet-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.015, 1.06);
+  }
+}
+
+.pet-tail {
+  transform-origin: 0% 10%;
+  animation: tail-wag 7s ease-in-out infinite;
+}
+@keyframes tail-wag {
+  0%,
+  78%,
+  100% {
+    transform: rotate(0deg);
+  }
+  81%,
+  87% {
+    transform: rotate(14deg);
+  }
+  84%,
+  90% {
+    transform: rotate(-8deg);
+  }
+}
+
+.pet-ear {
+  transform-origin: 20% 8%;
+  animation: ear-twitch 9s ease-in-out infinite;
+  animation-delay: -3s;
+}
+@keyframes ear-twitch {
+  0%,
+  88%,
+  100% {
+    transform: rotate(0deg);
+  }
+  90% {
+    transform: rotate(-12deg);
+  }
+  92% {
+    transform: rotate(2deg);
+  }
+  94% {
+    transform: rotate(-6deg);
+  }
+}
+
+.pet-eyes-open {
+  opacity: 0;
+}
+
+// lights
+.lamp-glow {
+  transform-origin: center;
+  animation: glow 7s ease-in-out infinite alternate;
+}
+@keyframes glow {
+  from {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.bulbs > g {
+  animation: bulb 3.5s ease-in-out infinite alternate;
+  @for $i from 1 through 12 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{-($i * 7 % 11) * 0.4}s;
+    }
+  }
+}
+@keyframes bulb {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
+.flame {
+  transform-origin: 50% 100%;
+  animation: flicker 1.6s ease-in-out infinite alternate;
+}
+.candle-glow {
+  transform-origin: center;
+  animation: glow 1.6s ease-in-out infinite alternate;
+}
+@keyframes flicker {
+  0% {
+    transform: scale(1, 1) rotate(-2deg);
+  }
+  50% {
+    transform: scale(0.92, 1.08) rotate(2deg);
+  }
+  100% {
+    transform: scale(1.04, 0.95) rotate(-1deg);
+  }
+}
+
+// ---------- celebration ----------
+.heart,
+.sparkle {
+  opacity: 0;
+  transform-origin: center;
+  transition: opacity 0.4s ease;
+}
+
+:host(.celebrating) {
+  .pet {
+    animation: hop 0.7s cubic-bezier(0.3, 0, 0.4, 1) infinite;
+  }
+  .pet-tail {
+    animation: tail-happy 0.28s ease-in-out infinite alternate;
+  }
+  .pet-ear {
+    animation: ear-bounce 0.7s ease-in-out infinite;
+  }
+  .pet-eyes-closed {
+    opacity: 0;
+  }
+  .pet-eyes-open {
+    opacity: 1;
+  }
+  .heart,
+  .sparkle {
+    opacity: 1;
+  }
+  .heart {
+    animation: float-up 2.4s ease-out infinite;
+  }
+  .heart-2 {
+    animation-delay: -0.6s;
+  }
+  .heart-3 {
+    animation-delay: -1.2s;
+  }
+  .heart-4 {
+    animation-delay: -1.8s;
+  }
+  .sparkle {
+    animation: sparkle 1.6s ease-in-out infinite;
+  }
+  .sparkle-2 {
+    animation-delay: -0.4s;
+  }
+  .sparkle-3 {
+    animation-delay: -0.8s;
+  }
+  .sparkle-4 {
+    animation-delay: -1.2s;
+  }
+  .girl-head {
+    animation: head-happy 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1.03, 0.96);
+  }
+  15% {
+    transform: translateY(0) scale(1, 1);
+  }
+  45% {
+    transform: translateY(-26px) scale(0.98, 1.03);
+  }
+  75% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+@keyframes tail-happy {
+  from {
+    transform: rotate(-16deg);
+  }
+  to {
+    transform: rotate(20deg);
+  }
+}
+@keyframes ear-bounce {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(-18deg);
+  }
+}
+@keyframes float-up {
+  0% {
+    transform: translateY(10px) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-110px) scale(1.1);
+    opacity: 0;
+  }
+}
+@keyframes sparkle {
+  0%,
+  100% {
+    transform: scale(0.2) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1) rotate(45deg);
+    opacity: 1;
+  }
+}
+@keyframes head-happy {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+// ---------- paused / reduced motion ----------
+:host(.paused) * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host * {
+    animation: none !important;
+  }
+}

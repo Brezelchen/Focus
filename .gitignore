@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Local SQLite database
+backend/src/Focus.Api/App_Data/
+
+# Angular production build is emitted into the API's wwwroot
+backend/src/Focus.Api/wwwroot/
+
+# Node / Angular
+node_modules/
+.angular/
+frontend/focus-web/dist/
+
+# Editors / OS
+.idea/
+.DS_Store
+Thumbs.db

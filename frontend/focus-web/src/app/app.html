@@ -1,0 +1,69 @@
+<div class="backdrop" aria-hidden="true">
+  <span class="blob b1"></span>
+  <span class="blob b2"></span>
+  <span class="blob b3"></span>
+  <span class="grain"></span>
+</div>
+
+@if (!immersive()) {
+  <nav class="nav glass" aria-label="Main">
+    <a class="brand" routerLink="/" aria-label="Focus home">
+      <span class="logo" aria-hidden="true">◎</span>
+      <span class="brand-name gradient-text">Focus</span>
+    </a>
+
+    <div class="links">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        <span class="ico" aria-hidden="true">🗓️</span><span class="label">Today</span>
+      </a>
+      <a routerLink="/stats" routerLinkActive="active">
+        <span class="ico" aria-hidden="true">📈</span><span class="label">Stats</span>
+      </a>
+      <a routerLink="/focus" class="focus-link">
+        <span class="ico" aria-hidden="true">🎧</span><span class="label">Focus mode</span>
+      </a>
+    </div>
+
+    <button
+      class="icon-btn pet-btn"
+      type="button"
+      (click)="pet.toggle()"
+      [attr.aria-label]="'Companion: ' + pet.kind() + '. Click to switch to ' + (pet.kind() === 'dog' ? 'cat' : 'dog') + '.'"
+      [title]="pet.kind() === 'dog' ? 'Switch to a cat' : 'Switch to a dog'"
+    >
+      {{ pet.icon() }}
+    </button>
+    <button
+      class="icon-btn theme-btn"
+      type="button"
+      (click)="theme.cycle()"
+      [attr.aria-label]="'Theme: ' + theme.mode() + '. Click to change.'"
+      [title]="'Theme: ' + theme.mode()"
+    >
+      {{ themeIcon[theme.mode()] }}
+    </button>
+  </nav>
+}
+
+<main class="main" [class.immersive]="immersive()">
+  @if (store.offline() && !immersive()) {
+    <div class="offline glass" role="status">
+      <span aria-hidden="true">🔌</span> Can't reach the Focus server. Start it with <code>dotnet run</code> in
+      <code>backend/src/Focus.Api</code>.
+      <button class="btn btn-ghost" type="button" (click)="store.init()">Retry</button>
+    </div>
+  }
+  <router-outlet />
+</main>
+
+<div class="toasts" aria-live="polite">
+  @for (t of toasts.toasts(); track t.id) {
+    <div class="toast glass" [attr.data-kind]="t.kind" animate.enter="enter-fade-up" animate.leave="leave-fade">
+      <span>{{ t.text }}</span>
+      @if (t.action) {
+        <button class="toast-action" type="button" (click)="t.action.run(); toasts.dismiss(t.id)">{{ t.action.label }}</button>
+      }
+      <button class="icon-btn" type="button" aria-label="Dismiss" (click)="toasts.dismiss(t.id)">✕</button>
+    </div>
+  }
+</div>

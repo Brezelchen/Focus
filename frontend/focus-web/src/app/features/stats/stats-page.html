@@ -1,0 +1,142 @@
+<div class="page">
+  <header class="head">
+    <div>
+      <h1>Your <span class="gradient-text">progress</span></h1>
+      <p class="muted">How your plans turn into done things.</p>
+    </div>
+    <div class="range" role="group" aria-label="Time range">
+      <button type="button" [class.on]="range() === 7" (click)="range.set(7)">7 days</button>
+      <button type="button" [class.on]="range() === 30" (click)="range.set(30)">30 days</button>
+    </div>
+  </header>
+
+  @if (error(); as e) {
+    <p class="error glass">{{ e }}</p>
+  }
+
+  <!-- ===== Headline tiles ===== -->
+  <section class="tiles">
+    <div class="tile glass today-tile enter-fade-up">
+      <app-progress-ring [value]="todayRate()" [size]="96" label="Today's completion">
+        <strong class="ring-num">{{ todayStat()?.done ?? 0 }}<span>/{{ todayStat()?.planned ?? 0 }}</span></strong>
+      </app-progress-ring>
+      <div>
+        <span class="tile-label">Today</span>
+        <span class="tile-sub muted">planned tasks done</span>
+      </div>
+    </div>
+
+    <div class="tile glass enter-fade-up" style="animation-delay: 60ms">
+      <span class="tile-icon" aria-hidden="true">🎯</span>
+      <span class="tile-value">{{ ratePercent() }}<small>%</small></span>
+      <span class="tile-label">Completion</span>
+      <span class="tile-sub muted">{{ summary()?.totals?.done ?? 0 }} of {{ summary()?.totals?.planned ?? 0 }} · last {{ range() }} days</span>
+    </div>
+
+    <div class="tile glass enter-fade-up" style="animation-delay: 120ms">
+      <span class="tile-icon flame" aria-hidden="true">🔥</span>
+      <span class="tile-value">{{ summary()?.currentStreak ?? 0 }}<small>{{ summary()?.currentStreak === 1 ? 'day' : 'days' }}</small></span>
+      <span class="tile-label">Streak</span>
+      <span class="tile-sub muted">best {{ summary()?.bestStreak ?? 0 }} · days with ≥ {{ ((summary()?.threshold ?? 0.8) * 100).toFixed(0) }}% done</span>
+    </div>
+
+    <div class="tile glass enter-fade-up" style="animation-delay: 180ms">
+      <span class="tile-icon" aria-hidden="true">🎧</span>
+      <span class="tile-value">{{ focusLabel() }}</span>
+      <span class="tile-label">Focus time</span>
+      <span class="tile-sub muted">{{ summary()?.totals?.sessions ?? 0 }} {{ summary()?.totals?.sessions === 1 ? 'session' : 'sessions' }} · last {{ range() }} days</span>
+    </div>
+  </section>
+
+  <!-- ===== Charts ===== -->
+  <section class="charts">
+    <div class="card glass wide">
+      <div class="card-head">
+        <h2>Planned vs. done</h2>
+        <button class="link-btn" type="button" (click)="showTable.set(!showTable())" [attr.aria-pressed]="showTable()">
+          {{ showTable() ? 'Show chart' : 'Show table' }}
+        </button>
+      </div>
+      @if (showTable()) {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Day</th><th>Planned</th><th>Done</th><th>Focus</th></tr>
+            </thead>
+            <tbody>
+              @for (d of summary()?.days ?? []; track d.date) {
+                <tr>
+                  <td>{{ rowDate(d.date) }}</td>
+                  <td>{{ d.planned }}</td>
+                  <td>{{ d.done }}</td>
+                  <td>{{ fmt(d.focusMinutes) || '–' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else if (dailyChart(); as opts) {
+        <div class="chart" echarts [options]="opts" [autoResize]="true"></div>
+      }
+    </div>
+
+    <div class="card glass">
+      <h2>Focus minutes</h2>
+      @if (focusChart(); as opts) {
+        <div class="chart small" echarts [options]="opts" [autoResize]="true"></div>
+      }
+    </div>
+
+    <div class="card glass insights">
+      <h2>Insights</h2>
+      @if (insights(); as i) {
+        <ul class="facts">
+          @if (i.bestWeekday; as w) {
+            <li><span aria-hidden="true">📅</span> You shine on <strong>{{ weekdayName(w.day) }}s</strong> ({{ (w.completionRate * 100).toFixed(0) }}% done on average)</li>
+          }
+          <li><span aria-hidden="true">✅</span> <strong>{{ i.totalDone }}</strong> planned tasks done all-time</li>
+          <li>
+            <span aria-hidden="true">🎧</span> <strong>{{ fmt(i.totalFocusMinutes) || '0m' }}</strong> focused in
+            {{ i.sessionsCompleted + i.sessionsEndedEarly }} {{ i.sessionsCompleted + i.sessionsEndedEarly === 1 ? 'session' : 'sessions' }} ({{ i.sessionsCompleted }} completed)
+          </li>
+        </ul>
+
+        @if (i.topTemplates.length) {
+          <h3>Favorite templates</h3>
+          <div class="templates">
+            @for (t of i.topTemplates; track t.id) {
+              <span class="tpl">{{ t.icon }} {{ t.title }} <small>{{ t.useCount }}×</small></span>
+            }
+          </div>
+        }
+
+        @if (i.mostPostponed.length) {
+          <h3>Keeps slipping</h3>
+          <ul class="slipping">
+            @for (t of i.mostPostponed; track t.id) {
+              <li><span>{{ t.title }}</span><span class="chip" data-color="rose">↻ {{ t.postponedCount }}×</span></li>
+            }
+          </ul>
+          <p class="muted tip">Tip: break these into smaller steps, or let them go.</p>
+        }
+      }
+    </div>
+
+    <div class="card glass wide">
+      <div class="card-head">
+        <h2>Last {{ 26 }} weeks</h2>
+        <div class="legend" aria-label="Legend: completion rate">
+          <span class="muted">less</span>
+          <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>
+          <span class="muted">more done</span>
+        </div>
+      </div>
+      @if (heatmap(); as opts) {
+        <div class="chart heat" echarts [options]="opts" [autoResize]="true"></div>
+      }
+      @if (year() && !hasAnyData()) {
+        <p class="muted empty">Your calendar fills up as you plan and finish days. 🌱</p>
+      }
+    </div>
+  </section>
+</div>

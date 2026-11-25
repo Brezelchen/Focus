@@ -1,0 +1,278 @@
+<div class="page" cdkDropListGroup>
+  <!-- ===== Header: greeting, day switcher, progress ===== -->
+  <header class="hero glass">
+    <div class="hero-text">
+      <p class="hello muted">{{ hello }} ✨</p>
+      <div class="day-switch">
+        <button class="icon-btn" type="button" (click)="store.shiftDay(-1)" aria-label="Previous day" title="Previous day (←)">‹</button>
+        <h1>
+          <span class="gradient-text">{{ dayTitle() }}</span>
+          <small class="muted">{{ dateLabel() }}</small>
+        </h1>
+        <button class="icon-btn" type="button" (click)="store.shiftDay(1)" aria-label="Next day" title="Next day (→)">›</button>
+        @if (!store.isToday()) {
+          <button class="btn btn-ghost back-today" type="button" (click)="store.selectDate(store.today())" animate.enter="enter-fade-up">
+            Back to today
+          </button>
+        }
+      </div>
+      <div class="pup-line">
+        <app-pup [mood]="pupMood()" [size]="64" />
+        <p class="bubble">{{ pupLine() }}</p>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <app-progress-ring [value]="store.progress()" [size]="128" [label]="percent() + '% of planned tasks done'">
+        <div class="ring-text">
+          <strong>{{ store.day()?.done ?? 0 }}<span>/{{ store.day()?.planned ?? 0 }}</span></strong>
+          <small>done</small>
+        </div>
+      </app-progress-ring>
+      @if (remaining()) {
+        <p class="remaining muted">≈ {{ remaining() }} left</p>
+      }
+    </div>
+  </header>
+
+  <!-- ===== Left column: quick add, templates, the day's list ===== -->
+  <section class="day-col">
+    @if (!store.isPast()) {
+      <div class="quick-add glass">
+        <span class="plus" aria-hidden="true">＋</span>
+        <input
+          #quick
+          class="quick-input"
+          [value]="quickText()"
+          (input)="quickText.set(value($event))"
+          (keydown.enter)="quickAdd($event, isShift($event) ? 'backlog' : 'day')"
+          [placeholder]="'Add to ' + dayTitle().toLowerCase() + '…  e.g. Write report #work ~45m !high @fri'"
+          aria-label="Quick add a task"
+          maxlength="300"
+        />
+        <button class="btn btn-primary" type="button" (click)="quickAdd(null, 'day')" [disabled]="!quickText().trim() || adding()">Add</button>
+      </div>
+      <p class="hint muted">
+        <kbd>Enter</kbd> add to {{ dayTitle().toLowerCase() }} · <kbd>Shift</kbd>+<kbd>Enter</kbd> add to backlog ·
+        <kbd>#tag</kbd> <kbd>~30m</kbd> <kbd>!high</kbd> <kbd>@fri</kbd> · <kbd>N</kbd> to type
+      </p>
+    }
+
+    <!-- Templates: reusable todos. Click or drag to create a fresh copy. -->
+    <div class="templates">
+      <h3>⭐ Templates <span class="muted">click or drag to reuse</span></h3>
+      <div
+        class="template-shelf"
+        cdkDropList
+        id="templates"
+        cdkDropListOrientation="mixed"
+        cdkDropListSortingDisabled
+        [cdkDropListEnterPredicate]="noEnter"
+      >
+        @for (t of store.templates(); track t.id) {
+          <div
+            class="template"
+            cdkDrag
+            [cdkDragData]="templateItem(t)"
+            [cdkDragStartDelay]="{ touch: 250, mouse: 0 }"
+            (click)="store.useTemplate(t, 'day')"
+            (contextmenu)="editTemplate(t, $event)"
+            [title]="'Add “' + t.title + '” · used ' + t.useCount + '× · right-click to edit'"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="store.useTemplate(t, 'day')"
+          >
+            <span class="t-icon">{{ t.icon }}</span>
+            <span class="t-title">{{ t.title }}</span>
+            @if (t.useCount > 1) {
+              <span class="t-count">{{ t.useCount }}</span>
+            }
+            <button class="t-edit" type="button" aria-label="Edit template" (click)="$event.stopPropagation(); editTemplate(t, $event)">✎</button>
+            <button class="t-del" type="button" aria-label="Delete template" (click)="deleteTemplate(t, $event)">✕</button>
+          </div>
+        } @empty {
+          <p class="muted empty-templates">
+            No templates yet. Use <strong>⋯ → Save as template</strong> on a task you do often.
+          </p>
+        }
+      </div>
+    </div>
+
+    <!-- The day's open tasks -->
+    <div
+      class="task-list day-list"
+      [class.readonly]="store.isPast()"
+      cdkDropList
+      id="day"
+      [cdkDropListData]="store.openTasks()"
+      [cdkDropListDisabled]="store.isPast()"
+      [cdkDropListEnterPredicate]="canEnterDay"
+      (cdkDropListDropped)="onDrop($event, 'day')"
+    >
+      @for (task of store.openTasks(); track task.id) {
+        <app-task-card
+          cdkDrag
+          [cdkDragData]="taskItem(task)"
+          [cdkDragStartDelay]="{ touch: 250, mouse: 0 }"
+          [task]="task"
+          location="day"
+          [readonly]="store.isPast()"
+          (toggle)="toggle(task, $event)"
+          (action)="onAction(task, $event)"
+          animate.enter="enter-fade-up"
+        >
+          <div *cdkDragPlaceholder class="drop-placeholder"></div>
+        </app-task-card>
+      } @empty {
+        <div class="empty-day">
+          @if (store.isPast()) {
+            <p class="muted">Nothing left open on this day.</p>
+          } @else if (store.loaded()) {
+            <p>
+              <strong>Your {{ dayTitle().toLowerCase() }} is a blank page.</strong><br />
+              <span class="muted">Type above, click a template, or drag tasks here from the backlog.</span>
+            </p>
+          }
+        </div>
+      }
+    </div>
+
+    @if (store.doneTasks().length) {
+      <div class="done-section">
+        <button class="done-toggle" type="button" (click)="showDone.set(!showDone())" [attr.aria-expanded]="showDone()">
+          <span class="caret" [class.open]="showDone()">›</span> Done · {{ store.doneTasks().length }}
+        </button>
+        @if (showDone()) {
+          <div class="task-list">
+            @for (task of store.doneTasks(); track task.id) {
+              <app-task-card
+                [task]="task"
+                location="day"
+                [compact]="true"
+                [readonly]="store.isPast()"
+                (toggle)="toggle(task, $event)"
+                (action)="onAction(task, $event)"
+                animate.enter="enter-fade-up"
+              />
+            }
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ===== Right column: focus dock + backlog ===== -->
+  <aside class="side-col">
+    <div class="focus-dock glass" [class.has-items]="store.focusTasks().length">
+      <div class="dock-head">
+        <h3>🎧 Focus</h3>
+        @if (store.focusTasks().length) {
+          <button class="icon-btn" type="button" (click)="store.clearFocus()" aria-label="Clear focus list" title="Clear">⟲</button>
+        }
+      </div>
+      <div
+        class="task-list focus-list"
+        cdkDropList
+        id="focus"
+        [cdkDropListData]="store.focusTasks()"
+        (cdkDropListDropped)="onFocusDrop($event)"
+      >
+        @for (task of store.focusTasks(); track task.id) {
+          <div class="focus-item" cdkDrag [cdkDragData]="taskItem(task)" animate.enter="enter-fade-up">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="f-title">{{ task.title }}</span>
+            <button class="icon-btn" type="button" (click)="store.removeFromFocus(task.id)" [attr.aria-label]="'Remove ' + task.title + ' from focus'">✕</button>
+          </div>
+        } @empty {
+          <p class="drop-hint">Drop the tasks you want to work on here</p>
+        }
+      </div>
+      <button class="btn btn-primary start" type="button" (click)="startFocus()">
+        ▶ {{ store.focusTasks().length ? 'Start focus (' + store.focusTasks().length + ')' : 'Open focus mode' }}
+      </button>
+    </div>
+
+    <div class="backlog glass">
+      <div class="backlog-head">
+        <h3>📥 Backlog <span class="count">{{ store.backlog().length }}</span></h3>
+      </div>
+      <div class="backlog-add">
+        <input
+          class="input"
+          placeholder="＋ Add for later…  #tag ~30m @fri"
+          [value]="backlogText()"
+          (input)="backlogText.set(value($event))"
+          (keydown.enter)="addToBacklog($event)"
+          aria-label="Add a task to the backlog"
+          maxlength="300"
+        />
+        <button class="btn btn-primary" type="button" (click)="addToBacklog(null)" [disabled]="!backlogText().trim() || adding()" aria-label="Add to backlog">
+          Add
+        </button>
+      </div>
+      <input
+        #searchBox
+        class="input search"
+        type="search"
+        placeholder="Search…  ( / )"
+        [value]="search()"
+        (input)="search.set(value($event))"
+        aria-label="Search backlog"
+      />
+      @if (backlogTags().length || dueCount()) {
+        <div class="tag-filter" role="group" aria-label="Filter by tag">
+          <button class="chip filter" type="button" [class.on]="tagFilter() === null && !dueOnly()" (click)="tagFilter.set(null); dueOnly.set(false)">All</button>
+          @if (dueCount()) {
+            <button class="chip filter" type="button" data-color="coral" [class.on]="dueOnly()" (click)="dueOnly.set(!dueOnly())" [attr.aria-pressed]="dueOnly()">
+              📅 Due soon · {{ dueCount() }}
+            </button>
+          }
+          @for (tag of backlogTags(); track tag.id) {
+            <button
+              class="chip filter"
+              type="button"
+              [attr.data-color]="tag.color"
+              [class.on]="tagFilter() === tag.id"
+              (click)="tagFilter.set(tagFilter() === tag.id ? null : tag.id)"
+            >
+              #{{ tag.name }}
+            </button>
+          }
+        </div>
+      }
+
+      <div
+        class="task-list backlog-list"
+        cdkDropList
+        id="backlog"
+        [cdkDropListData]="filteredBacklog()"
+        [cdkDropListSortingDisabled]="backlogFiltered()"
+        (cdkDropListDropped)="onDrop($event, 'backlog')"
+      >
+        @for (task of filteredBacklog(); track task.id) {
+          <app-task-card
+            cdkDrag
+            [cdkDragData]="taskItem(task)"
+            [cdkDragStartDelay]="{ touch: 250, mouse: 0 }"
+            [task]="task"
+            location="backlog"
+            [compact]="true"
+            (toggle)="toggle(task, $event)"
+            (action)="onAction(task, $event)"
+            animate.enter="enter-fade-up"
+          >
+            <div *cdkDragPlaceholder class="drop-placeholder small"></div>
+          </app-task-card>
+        } @empty {
+          <p class="muted empty-backlog">
+            @if (backlogFiltered()) {
+              No matches.
+            } @else {
+              Your backlog is empty. Ideas for later land here (<kbd>Shift</kbd>+<kbd>Enter</kbd>).
+            }
+          </p>
+        }
+      </div>
+    </div>
+  </aside>
+</div>

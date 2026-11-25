@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Focus.Api/Focus.Api.csproj" />
+    <Project Path="src/Focus.Application/Focus.Application.csproj" />
+    <Project Path="src/Focus.Domain/Focus.Domain.csproj" />
+    <Project Path="src/Focus.Infrastructure/Focus.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Focus.IntegrationTests/Focus.IntegrationTests.csproj" />
+    <Project Path="tests/Focus.UnitTests/Focus.UnitTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,205 @@
+<div class="stage" [attr.data-phase]="phase()" cdkDropListGroup>
+  <app-lofi-scene [timeOfDay]="theme.timeOfDay()" [celebrating]="celebrating()" [paused]="phase() === 'paused'" [pet]="pet.kind()" />
+  <div class="vignette" aria-hidden="true"></div>
+
+  <!-- ===== Top bar ===== -->
+  <div class="topbar">
+    <button class="pill-btn" type="button" (click)="exit()" aria-label="Leave focus mode">← Today</button>
+    <div class="top-right">
+      <button
+        class="pill-btn"
+        type="button"
+        [class.on]="ambience.playing()"
+        (click)="mixerOpen.set(!mixerOpen())"
+        [attr.aria-expanded]="mixerOpen()"
+        aria-controls="mixer"
+      >
+        {{ ambience.playing() ? '🎵' : '🔇' }} Sounds
+      </button>
+      <button class="pill-btn square" type="button" (click)="toggleFullscreen()" [attr.aria-label]="fullscreen() ? 'Exit full screen' : 'Full screen'" title="Full screen (F)">
+        {{ fullscreen() ? '🗗' : '⛶' }}
+      </button>
+    </div>
+  </div>
+
+  @if (mixerOpen()) {
+    <div id="mixer" class="mixer panel" animate.enter="enter-fade-up" animate.leave="leave-fade">
+      <div class="mixer-head">
+        <strong>Ambience</strong>
+        <button class="play" type="button" (click)="ambience.toggle()" [attr.aria-label]="ambience.playing() ? 'Pause sounds' : 'Play sounds'">
+          {{ ambience.playing() ? '❚❚' : '▶' }}
+        </button>
+      </div>
+      @for (c of channels; track c.id) {
+        <label class="channel">
+          <span class="c-icon" aria-hidden="true">{{ c.icon }}</span>
+          <span class="c-label">{{ c.label }}</span>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            [value]="ambience.volumes()[c.id] * 100"
+            (input)="setVolume(c.id, $event)"
+            [attr.aria-label]="c.label + ' volume'"
+            [style.--fill]="ambience.volumes()[c.id] * 100 + '%'"
+          />
+        </label>
+      }
+      <p class="mixer-hint">All sounds are generated live in your browser. <kbd>M</kbd> to mute.</p>
+    </div>
+  }
+
+  <!-- ===== Timer ===== -->
+  <section class="timer" [class.big]="active()" aria-live="polite">
+    <div class="clock" [attr.aria-label]="clock() + ' remaining'">{{ clock() }}</div>
+    @if (active()) {
+      <div class="bar" aria-hidden="true"><span [style.width.%]="progress() * 100"></span></div>
+      <p class="status">
+        @if (phase() === 'paused') {
+          Paused · take a breath
+        } @else if (trayTasks().length) {
+          Focusing on {{ trayTasks()[0].title }}{{ trayTasks().length > 1 ? ' + ' + (trayTasks().length - 1) + ' more' : '' }}
+        } @else {
+          Deep focus
+        }
+      </p>
+      <div class="controls">
+        @if (phase() === 'running') {
+          <button class="ctrl" type="button" (click)="pause()" aria-label="Pause (Space)">❚❚</button>
+        } @else {
+          <button class="ctrl primary" type="button" (click)="resume()" aria-label="Resume (Space)">▶</button>
+        }
+        <button class="ctrl" type="button" (click)="finish('endedEarly')" aria-label="End session" title="End session">■</button>
+      </div>
+    }
+  </section>
+
+  <!-- ===== Setup card ===== -->
+  @if (phase() === 'setup') {
+    <section class="setup panel" animate.enter="enter-fade-up" animate.leave="leave-fade">
+      <h1>What will you focus on?</h1>
+
+      <div
+        class="tray"
+        cdkDropList
+        id="tray"
+        [cdkDropListData]="trayTasks()"
+        (cdkDropListDropped)="onTrayDrop($event)"
+      >
+        @for (t of trayTasks(); track t.id) {
+          <div class="tray-item" cdkDrag [cdkDragData]="t">
+            <span class="dot" aria-hidden="true"></span>
+            <span class="t-title">{{ t.title }}</span>
+            <button class="x" type="button" (click)="store.removeFromFocus(t.id)" [attr.aria-label]="'Remove ' + t.title">✕</button>
+          </div>
+        } @empty {
+          <p class="tray-empty">Drag tasks here from today's list, or just focus freely.</p>
+        }
+      </div>
+
+      @if (available().length) {
+        <div class="pick">
+          <span class="pick-label">Today</span>
+          <div class="pick-list" cdkDropList id="pick" [cdkDropListData]="available()" cdkDropListSortingDisabled>
+            @for (t of available(); track t.id) {
+              <button class="pick-item" type="button" cdkDrag [cdkDragData]="t" (click)="addTask(t)">＋ {{ t.title }}</button>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="durations" role="group" aria-label="Duration">
+        @for (p of presets; track p) {
+          <button type="button" class="dur" [class.on]="minutes() === p && !customOpen()" (click)="setMinutes(p); customOpen.set(false)">
+            {{ p }}<small>min</small>
+          </button>
+        }
+        @if (customOpen()) {
+          <label class="dur custom on">
+            <input type="number" min="1" max="240" [value]="minutes()" (input)="setMinutes(numberValue($event))" aria-label="Minutes" />
+            <small>min</small>
+          </label>
+        } @else {
+          <button type="button" class="dur" [class.on]="!presets.includes(minutes())" (click)="customOpen.set(true)">
+            {{ presets.includes(minutes()) ? '…' : minutes() }}<small>{{ presets.includes(minutes()) ? 'custom' : 'min' }}</small>
+          </button>
+        }
+      </div>
+
+      <button class="btn btn-primary go" type="button" (click)="start()">▶ Start focusing</button>
+      <p class="keys"><kbd>Space</kbd> pause · <kbd>F</kbd> full screen · <kbd>M</kbd> sound</p>
+    </section>
+  }
+
+  <!-- ===== Task tray while focusing ===== -->
+  @if (active()) {
+    <section class="side-tray panel" animate.enter="enter-fade-up">
+      <div class="side-head">
+        <strong>Tasks</strong>
+        <button class="pill-btn small" type="button" (click)="drawerOpen.set(!drawerOpen())" [attr.aria-expanded]="drawerOpen()">＋ Add</button>
+      </div>
+      <div class="side-list" cdkDropList id="tray-running" [cdkDropListData]="trayTasks()" (cdkDropListDropped)="onTrayDrop($event)">
+        @for (t of trayTasks(); track t.id) {
+          <div class="run-item" cdkDrag [cdkDragData]="t" animate.leave="leave-fade">
+            <button class="check" type="button" (click)="completeTask(t, $event)" [attr.aria-label]="'Done: ' + t.title">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" /></svg>
+            </button>
+            <span class="t-title">{{ t.title }}</span>
+          </div>
+        }
+        @for (title of doneInSession(); track $index) {
+          <div class="run-item done">
+            <span class="check on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" /></svg></span>
+            <span class="t-title">{{ title }}</span>
+          </div>
+        }
+        @if (!trayTasks().length && !doneInSession().length) {
+          <p class="tray-empty small">Free focus. Add a task anytime.</p>
+        }
+      </div>
+
+      @if (drawerOpen()) {
+        <div class="drawer" animate.enter="enter-fade-up">
+          @for (t of available(); track t.id) {
+            <button class="pick-item" type="button" (click)="addTask(t)">＋ {{ t.title }}</button>
+          } @empty {
+            <p class="tray-empty small">Nothing else on today's list.</p>
+          }
+        </div>
+      }
+
+      @if (allDone()) {
+        <div class="all-done" animate.enter="enter-fade-up">
+          <span>All tasks done! 🎉</span>
+          <button class="btn btn-primary small-btn" type="button" (click)="finish('completed')">Finish session</button>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- ===== Summary ===== -->
+  @if (phase() === 'finished' && summary(); as s) {
+    <section class="summary panel" animate.enter="enter-fade-up" role="dialog" aria-labelledby="summary-title">
+      <div class="badge" aria-hidden="true">{{ s.status === 'completed' ? '🌟' : '🌙' }}</div>
+      <h1 id="summary-title">{{ s.status === 'completed' ? 'Session complete!' : 'Nice effort' }}</h1>
+      <p class="big-stat">
+        <strong>{{ formatFocused(s.focusedSeconds) }}</strong> of focus
+        @if (s.total) {
+          · <strong>{{ s.done.length }}/{{ s.total }}</strong> tasks done
+        }
+      </p>
+      @if (s.done.length) {
+        <ul class="done-list">
+          @for (title of s.done; track $index) {
+            <li>✓ {{ title }}</li>
+          }
+        </ul>
+      }
+      <p class="muted-light">Your {{ pet.nickname() }} is proud of you. 🐾</p>
+      <div class="sum-actions">
+        <button class="btn btn-ghost" type="button" (click)="exit()">Back to today</button>
+        <button class="btn btn-primary" type="button" (click)="again()">Another round</button>
+      </div>
+    </section>
+  }
+</div>
