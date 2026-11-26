@@ -125,6 +125,20 @@ function validDate(y: number, mo: number, d: number): IsoDate | null {
   return date.getFullYear() === y && date.getMonth() === mo - 1 && date.getDate() === d ? toIsoDate(date) : null;
 }
 
+/**
+ * A duration typed by hand, e.g. "40", "40m", "1h20", "1h 20m", "1.5h", "1:30". Minutes, 1 to 24 hours; null if invalid.
+ * Uses the same rules as the `~45m` shorthand.
+ */
+export function parseDuration(text: string): number | null {
+  const t = text.trim().replace(/^~/, '').replace(/\s+/g, '').toLowerCase();
+  const clock = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (clock) {
+    const minutes = +clock[1] * 60 + +clock[2];
+    return +clock[2] < 60 && minutes > 0 && minutes <= 24 * 60 ? minutes : null;
+  }
+  return parseEstimate('~' + t.replace(/min$/, 'm'));
+}
+
 function parseEstimate(token: string): number | null {
   const m = /^~(?:(\d+(?:[.,]\d+)?)h(?:(\d{1,2})m?)?|(\d+)m?)$/i.exec(token);
   if (!m) return null;

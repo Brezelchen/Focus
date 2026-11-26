@@ -1,4 +1,4 @@
-import { parseQuickAdd } from './quick-add';
+import { parseDuration, parseQuickAdd } from './quick-add';
 
 describe('parseQuickAdd', () => {
   const today = '2026-11-26'; // a Thursday
@@ -37,5 +37,27 @@ describe('parseQuickAdd', () => {
   it('reports duplicates and due dates on templates', () => {
     expect(parseQuickAdd('x #a #b', today).errors).toEqual(['Only one #tag per task.']);
     expect(parseQuickAdd('x @fri', today, false)).toMatchObject({ dueDate: null, errors: [`Templates can't have a due date ("@fri").`] });
+  });
+});
+
+describe('parseDuration', () => {
+  it('reads minutes, hours and mixed forms', () => {
+    expect(parseDuration('40')).toBe(40);
+    expect(parseDuration('40m')).toBe(40);
+    expect(parseDuration('40 min')).toBe(40);
+    expect(parseDuration('1h20')).toBe(80);
+    expect(parseDuration('1h 20m')).toBe(80);
+    expect(parseDuration('1.5h')).toBe(90);
+    expect(parseDuration('1,5h')).toBe(90);
+    expect(parseDuration('1:30')).toBe(90);
+    expect(parseDuration(' ~2h ')).toBe(120);
+  });
+
+  it('rejects nonsense, zero and more than 24 hours', () => {
+    expect(parseDuration('')).toBeNull();
+    expect(parseDuration('abc')).toBeNull();
+    expect(parseDuration('0')).toBeNull();
+    expect(parseDuration('25h')).toBeNull();
+    expect(parseDuration('1:75')).toBeNull();
   });
 });

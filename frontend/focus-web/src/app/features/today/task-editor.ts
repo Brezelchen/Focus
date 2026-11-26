@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { addDays, formatMinutes, parseIsoDate, todayIso } from '../../core/dates';
 import { Priority, RecurrenceInput, RepeatFrequency, Task, TemplateInput, Template, WEEKDAYS, Weekday } from '../../core/models';
 import { PlannerStore } from '../../core/planner.store';
-import { parseQuickAdd } from '../../core/quick-add';
+import { parseDuration, parseQuickAdd } from '../../core/quick-add';
 import { describeRepeat, ordinal, sameRepeat } from '../../core/recurrence';
 import { ToastService } from '../../core/toast.service';
 
@@ -172,10 +172,21 @@ interface ChecklistRow {
       <div class="field">
         <span>Time estimate</span>
         <div class="options">
-          <button type="button" class="opt" [class.on]="estimate() === null" (click)="estimate.set(null)">None</button>
+          <button type="button" class="opt" [class.on]="estimate() === null" (click)="setEstimate(null)">None</button>
           @for (m of estimates; track m) {
-            <button type="button" class="opt" [class.on]="estimate() === m" (click)="estimate.set(m)">{{ fmt(m) }}</button>
+            <button type="button" class="opt" [class.on]="estimate() === m" (click)="setEstimate(m)">{{ fmt(m) }}</button>
           }
+          <input
+            class="input custom-est"
+            [class.on]="isCustomEstimate()"
+            placeholder="Custom: 40m, 1h20"
+            maxlength="12"
+            [value]="customEstimate()"
+            (input)="customEstimate.set(value($event))"
+            (change)="applyCustomEstimate()"
+            (keydown.enter)="$event.preventDefault(); applyCustomEstimate()"
+            aria-label="Custom time estimate, e.g. 40m or 1h20"
+          />
         </div>
       </div>
 
@@ -230,6 +241,10 @@ interface ChecklistRow {
     }
     .emoji { width: 38px; padding: 0; font-size: 18px; }
     .date { width: 150px; height: 32px; border-radius: var(--radius-pill); font-size: 13px; padding: 0 12px; }
+    .custom-est {
+      width: 150px; height: 32px; border-radius: var(--radius-pill); font-size: 13px; padding: 0 12px;
+      &.on { border-color: transparent; box-shadow: 0 0 0 2px var(--accent-2); font-weight: 700; }
+    }
     .new-tag { width: 120px; height: 32px; border-radius: var(--radius-pill); font-size: 13px; padding: 0 12px; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
     .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -368,6 +383,36 @@ export class TaskEditor {
 
   protected readonly fmt = formatMinutes;
 
+  /** Text in the custom estimate box; prefilled when the estimate isn't one of the presets (e.g. ~40m from quick add). */
+  protected readonly customEstimate = signal(
+    this.data.item.estimateMinutes !== null && !ESTIMATES.includes(this.data.item.estimateMinutes) ? formatMinutes(this.data.item.estimateMinutes) : '',
+  );
+  protected readonly isCustomEstimate = computed(() => {
+    const e = this.estimate();
+    return e !== null && !ESTIMATES.includes(e);
+  });
+
+  protected setEstimate(minutes: number | null): void {
+    this.estimate.set(minutes);
+    this.customEstimate.set('');
+  }
+
+  /** Reads the custom box. Empty leaves the estimate alone; invalid input is reported and reset. Returns false if invalid. */
+  protected applyCustomEstimate(): boolean {
+    const text = this.customEstimate().trim();
+    if (!text) return true;
+    const minutes = parseDuration(text);
+    if (minutes === null) {
+      this.toast.error('Use a time like 40m, 1h20 or 1:30 (up to 24h).');
+      this.customEstimate.set(this.isCustomEstimate() ? formatMinutes(this.estimate()) : '');
+      return false;
+    }
+    this.estimate.set(minutes);
+    // A value that matches a preset just selects that preset.
+    this.customEstimate.set(ESTIMATES.includes(minutes) ? '' : formatMinutes(minutes));
+    return true;
+  }
+
   protected value(e: Event): string {
     return (e.target as HTMLInputElement).value;
   }
@@ -417,7 +462,10 @@ export class TaskEditor {
     }
     if (parsed.title === this.title().trim()) return true;
     this.title.set(parsed.title);
-    if (parsed.estimateMinutes !== null) this.estimate.set(parsed.estimateMinutes);
+    if (parsed.estimateMinutes !== null) {
+      this.estimate.set(parsed.estimateMinutes);
+      this.customEstimate.set(ESTIMATES.includes(parsed.estimateMinutes) ? '' : formatMinutes(parsed.estimateMinutes));
+    }
     if (parsed.priority) this.priority.set(parsed.priority);
     if (parsed.dueDate) this.dueDate.set(parsed.dueDate);
     if (parsed.tagName) {
@@ -432,6 +480,7 @@ export class TaskEditor {
   protected async save(): Promise<void> {
     if (!(await this.applyShorthand())) return;
     if (!this.title().trim()) return;
+    if (!this.applyCustomEstimate()) return; // a custom time typed without pressing Enter still counts
     this.addRow(); // a step typed but not yet added with Enter still counts
     const rows = this.checklist().filter((r) => r.title.trim());
     this.ref.close({
