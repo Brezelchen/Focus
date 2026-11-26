@@ -91,6 +91,21 @@ public sealed class ChecklistTests : IDisposable
     }
 
     [Fact]
+    public async Task Deleting_a_template_keeps_its_tasks_but_unlinks_them()
+    {
+        var task = await _app.Tasks.CreateAsync(new CreateTaskRequest("Haushalt"));
+        var template = await _app.Templates.CreateFromTaskAsync(task.Id);
+        var copy = await _app.Templates.InstantiateAsync(template.Id, new InstantiateTemplateRequest(null));
+
+        await _app.Templates.DeleteAsync(template.Id);
+        _app.Db.ChangeTracker.Clear(); // read what's in the database
+
+        var backlog = await _app.Tasks.GetBacklogAsync(null, null);
+        Assert.Equal([task.Id, copy.Id], backlog.Select(t => t.Id));
+        Assert.All(backlog, t => Assert.Null(t.TemplateId));
+    }
+
+    [Fact]
     public async Task Deleting_a_task_deletes_its_checklist()
     {
         var task = await _app.Tasks.CreateAsync(new CreateTaskRequest("A", Subtasks: ["x", "y"]));

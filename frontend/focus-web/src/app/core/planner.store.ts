@@ -287,10 +287,37 @@ export class PlannerStore {
     await Promise.all([this.loadTemplates(), this.refresh()]);
   }
 
-  async deleteTemplate(template: Template): Promise<void> {
-    this.templates.update((list) => list.filter((t) => t.id !== template.id));
-    await this.run(this.api.deleteTemplate(template.id));
-    await this.loadTemplates();
+  async deleteTemplate(template: Template): Promise<boolean> {
+    return this.deleteTemplateById(template.id);
+  }
+
+  /**
+   * "Remove from templates" on a task: deletes the template it came from. The task (and other copies) stay,
+   * just no longer linked; a repeating series stops repeating.
+   */
+  async removeFromTemplates(task: Task): Promise<void> {
+    if (task.templateId === null) return;
+    const repeated = !!task.repeat;
+    if (await this.deleteTemplateById(task.templateId)) {
+      this.toast.show(`"${task.title}" is no longer a template${repeated ? ' and stops repeating' : ''}.`);
+    }
+  }
+
+  private async deleteTemplateById(id: number): Promise<boolean> {
+    this.templates.update((list) => list.filter((t) => t.id !== id));
+    // Tasks made from it stay, but are no longer linked (no ⭐, no 🔁). The server does the same.
+    const unlink = (t: Task): Task => (t.templateId === id ? { ...t, templateId: null, repeat: null } : t);
+    this.day.update((d) => (d ? { ...d, tasks: d.tasks.map(unlink) } : d));
+    this.backlog.update((list) => list.map(unlink));
+    let ok = true;
+    try {
+      await firstValueFrom(this.api.deleteTemplate(id), { defaultValue: undefined });
+    } catch (err) {
+      ok = false;
+      this.toast.error(errorMessage(err));
+    }
+    await Promise.all([this.loadTemplates(), this.refresh()]);
+    return ok;
   }
 
   async createTag(name: string): Promise<Tag | null> {

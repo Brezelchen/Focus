@@ -407,7 +407,9 @@ export class CommandPalette {
         },
       });
     }
-    if (!task.templateId) {
+    if (task.templateId) {
+      items.push({ id: 'untemplate', icon: '☆', label: 'Remove from templates', keywords: 'unstar template delete repeat stop', run: () => s.removeFromTemplates(task) });
+    } else {
       items.push({ id: 'template', icon: '⭐', label: 'Save as template', keywords: 'reuse', run: () => s.saveAsTemplate(task) });
     }
     items.push({ id: 'delete', icon: '🗑️', label: 'Delete', keywords: 'remove', run: () => s.remove(task) });

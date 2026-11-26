@@ -4,7 +4,7 @@ import { DueState, dayDiff, dueLabel, formatMinutes, todayIso } from '../core/da
 import { describeRepeat, shortRepeat } from '../core/recurrence';
 import { Subtask, Task } from '../core/models';
 
-export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 'toBacklog' | 'reopen';
+export type TaskAction = 'edit' | 'delete' | 'template' | 'untemplate' | 'focus' | 'toToday' | 'toBacklog' | 'reopen';
 
 /** A single todo row: checkbox, title, metadata chips and an actions menu. */
 @Component({
@@ -112,7 +112,9 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
             <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('toBacklog')">📥 Back to backlog</button>
           }
         }
-        @if (!task().templateId) {
+        @if (task().templateId) {
+          <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('untemplate')">☆ Remove from templates</button>
+        } @else {
           <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('template')">⭐ Save as template</button>
         }
         <button cdkMenuItem class="danger" (cdkMenuItemTriggered)="action.emit('delete')">🗑️ Delete</button>

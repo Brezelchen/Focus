@@ -190,6 +190,8 @@ export class TodayPage {
         return void this.store.remove(task);
       case 'template':
         return void this.store.saveAsTemplate(task);
+      case 'untemplate':
+        return void this.store.removeFromTemplates(task);
       case 'focus':
         return this.store.addToFocus(task.id);
       case 'toToday':
