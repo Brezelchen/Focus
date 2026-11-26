@@ -1,10 +1,16 @@
 {
+  "id": "./",
   "name": "Focus",
   "short_name": "Focus",
   "description": "Plan your day, focus with a cozy lofi companion, and see what you got done.",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
+  "orientation": "any",
+  "categories": [
+    "productivity",
+    "lifestyle"
+  ],
   "background_color": "#fbe3e8",
   "theme_color": "#a17cff",
   "icons": [
@@ -20,7 +26,27 @@
     { "src": "icons/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Focus mode", "url": "./focus", "description": "Start a focus session" },
-    { "name": "Stats", "url": "./stats" }
+    {
+      "name": "Focus mode",
+      "url": "./focus",
+      "description": "Start a focus session",
+      "icons": [
+        {
+          "src": "icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "url": "./stats",
+      "description": "See how your plans turned out",
+      "icons": [
+        {
+          "src": "icons/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
   ]
 }

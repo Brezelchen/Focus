@@ -29,6 +29,21 @@ export interface Task {
   completedAt: string | null;
   /** How often this task left a day unfinished. */
   postponedCount: number;
+  /** Checklist, in order. */
+  subtasks: Subtask[];
+}
+
+export interface Subtask {
+  id: number;
+  title: string;
+  isDone: boolean;
+}
+
+/** A checklist row as sent when saving a task: `id` is null for new items. */
+export interface SubtaskInput {
+  id: number | null;
+  title: string;
+  isDone: boolean;
 }
 
 export interface Template {
@@ -39,6 +54,8 @@ export interface Template {
   estimateMinutes: number | null;
   priority: Priority;
   tag: Tag | null;
+  /** Checklist titles copied (unticked) into every task created from the template. */
+  checklist: string[];
   useCount: number;
   lastUsedAt: string | null;
 }
@@ -50,6 +67,29 @@ export interface Day {
   planned: number;
   done: number;
   remainingEstimateMinutes: number;
+  /** End-of-day reflection, if one was written. */
+  note: DayNote | null;
+}
+
+export type Mood = 'rough' | 'meh' | 'okay' | 'good' | 'great';
+
+export const MOODS: { id: Mood; emoji: string; label: string }[] = [
+  { id: 'rough', emoji: '😣', label: 'Rough' },
+  { id: 'meh', emoji: '😕', label: 'Meh' },
+  { id: 'okay', emoji: '🙂', label: 'Okay' },
+  { id: 'good', emoji: '😊', label: 'Good' },
+  { id: 'great', emoji: '🤩', label: 'Great' },
+];
+
+export function moodEmoji(mood: Mood | null | undefined): string {
+  return MOODS.find((m) => m.id === mood)?.emoji ?? '';
+}
+
+export interface DayNote {
+  date: IsoDate;
+  mood: Mood | null;
+  reflection: string | null;
+  updatedAt: string;
 }
 
 export interface DaySummary {
@@ -70,10 +110,13 @@ export interface TaskInput {
   priority: Priority;
   tagId: number | null;
   dueDate: IsoDate | null;
+  /** Replaces the checklist; omit to keep it unchanged. */
+  subtasks?: SubtaskInput[];
 }
 
 export interface TemplateInput extends TaskInput {
   icon: string;
+  checklist?: string[];
 }
 
 export type FocusSessionStatus = 'running' | 'completed' | 'endedEarly';
@@ -93,6 +136,8 @@ export interface DayStat {
   planned: number;
   done: number;
   focusMinutes: number;
+  mood: Mood | null;
+  reflection: string | null;
 }
 
 export interface StatsSummary {

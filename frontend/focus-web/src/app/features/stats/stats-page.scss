@@ -162,6 +162,7 @@
   background: none;
   color: var(--accent-2);
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -295,5 +296,53 @@ table {
 @media (max-width: 480px) {
   .tiles {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Journal ---- */
+.journal {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+}
+
+.j-mood {
+  flex: none;
+  width: 28px;
+  font-size: 22px;
+  text-align: center;
+}
+
+.j-date {
+  flex: none;
+  width: 104px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.j-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .journal li {
+    flex-wrap: wrap;
+  }
+  .j-text {
+    flex-basis: 100%;
   }
 }

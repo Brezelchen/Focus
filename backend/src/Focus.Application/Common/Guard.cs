@@ -22,6 +22,25 @@ internal static class Guard
         return minutes;
     }
 
+    public static string SubtaskTitle(string? title)
+    {
+        var trimmed = title?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            throw new ValidationException("Checklist items need a title.");
+        if (trimmed.Length > Subtask.TitleMaxLength)
+            throw new ValidationException($"Checklist items must be at most {Subtask.TitleMaxLength} characters.");
+        return trimmed;
+    }
+
+    /// <summary>Validates a checklist (template checklists and full task checklists), dropping blank lines.</summary>
+    public static List<string> Checklist(IEnumerable<string?>? titles)
+    {
+        var list = (titles ?? []).Where(t => !string.IsNullOrWhiteSpace(t)).Select(SubtaskTitle).ToList();
+        if (list.Count > Subtask.MaxPerTask)
+            throw new ValidationException($"A checklist can have at most {Subtask.MaxPerTask} items.");
+        return list;
+    }
+
     public static string? Notes(string? notes)
     {
         var trimmed = notes?.Trim();

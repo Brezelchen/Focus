@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import type { EChartsCoreOption } from 'echarts/core';
+import { RouterLink } from '@angular/router';
 import { NgxEchartsDirective } from 'ngx-echarts';
 import { firstValueFrom } from 'rxjs';
 import { Api, errorMessage } from '../../core/api';
 import { addDays, formatMinutes, parseIsoDate, todayIso } from '../../core/dates';
-import { StatsInsights, StatsSummary } from '../../core/models';
+import { MOODS, StatsInsights, StatsSummary, moodEmoji } from '../../core/models';
+import { PlannerStore } from '../../core/planner.store';
 import { ThemeService } from '../../core/theme.service';
 import { ProgressRing } from '../../shared/progress-ring';
 
@@ -20,7 +22,7 @@ const HEATMAP_WEEKS = 26;
 
 @Component({
   selector: 'app-stats-page',
-  imports: [NgxEchartsDirective, ProgressRing],
+  imports: [NgxEchartsDirective, ProgressRing, RouterLink],
   templateUrl: './stats-page.html',
   styleUrl: './stats-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +30,7 @@ const HEATMAP_WEEKS = 26;
 export class StatsPage {
   private readonly api = inject(Api);
   private readonly theme = inject(ThemeService);
+  private readonly store = inject(PlannerStore);
 
   protected readonly range = signal<Range>(7);
   protected readonly summary = signal<StatsSummary | null>(null);
@@ -47,6 +50,15 @@ export class StatsPage {
   protected readonly focusLabel = computed(() => formatMinutes(this.summary()?.totals.focusMinutes) || '0m');
   protected readonly hasAnyData = computed(() => (this.year()?.days ?? []).some((d) => d.planned > 0 || d.focusMinutes > 0));
   protected readonly fmt = formatMinutes;
+  protected readonly moodEmoji = moodEmoji;
+
+  /** Recent end-of-day reflections, newest first. */
+  protected readonly journal = computed(() =>
+    (this.year()?.days ?? [])
+      .filter((d) => d.mood || d.reflection)
+      .reverse()
+      .slice(0, 8),
+  );
 
   protected readonly dailyChart = computed<EChartsCoreOption | null>(() => {
     const s = this.summary();
@@ -105,6 +117,7 @@ export class StatsPage {
     const y = this.year();
     if (!y) return null;
     const c = this.colors();
+    const notes = new Map(y.days.map((d) => [d.date, d]));
     const data = y.days.map((d) => [d.date, d.planned ? Math.round((d.done / d.planned) * 100) : null, d.done, d.planned]);
     return {
       tooltip: {
@@ -112,7 +125,11 @@ export class StatsPage {
         formatter: (p: { value: [string, number | null, number, number] }) => {
           const [date, rate, done, planned] = p.value;
           const label = parseIsoDate(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-          return planned ? `<b>${label}</b><br/>${done} of ${planned} done (${rate}%)` : `<b>${label}</b><br/>Nothing planned`;
+          const day = notes.get(date);
+          const mood = day?.mood ? ` ${moodEmoji(day.mood)}` : '';
+          const note = day?.reflection ? `<br/><i>“${escapeHtml(truncate(day.reflection, 90))}”</i>` : '';
+          const counts = planned ? `${done} of ${planned} done (${rate}%)` : 'Nothing planned';
+          return `<b>${label}</b>${mood}<br/>${counts}${note}`;
         },
       },
       visualMap: {
@@ -174,6 +191,15 @@ export class StatsPage {
     }
   }
 
+  protected moodLabel(mood: string | null): string {
+    return MOODS.find((m) => m.id === mood)?.label ?? '';
+  }
+
+  protected reflectToday(): void {
+    void this.store.selectDate(this.store.today());
+    this.store.reflectRequested.set(true);
+  }
+
   protected weekdayName(day: string): string {
     return day.charAt(0).toUpperCase() + day.slice(1);
   }
@@ -181,6 +207,14 @@ export class StatsPage {
   protected rowDate(iso: string): string {
     return parseIsoDate(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   }
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
 }
 
 function axisLabel(iso: string, count: number): string {

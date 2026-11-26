@@ -4,9 +4,11 @@ import { Observable } from 'rxjs';
 import { todayIso } from './dates';
 import {
   Day,
+  DayNote,
   FocusSession,
   FocusSessionStatus,
   IsoDate,
+  Mood,
   RolloverResult,
   StatsInsights,
   StatsSummary,
@@ -34,6 +36,10 @@ export class Api {
   rollover(): Observable<RolloverResult> {
     return this.http.post<RolloverResult>('/api/days/rollover', {});
   }
+  /** Saves the end-of-day reflection; resolves to null when the (empty) note was deleted. */
+  saveNote(date: IsoDate, mood: Mood | null, reflection: string | null): Observable<DayNote | null> {
+    return this.http.put<DayNote | null>(`/api/days/${date}/note`, { mood, reflection });
+  }
 
   // Tasks
   backlog(): Observable<Task[]> {
@@ -56,6 +62,15 @@ export class Api {
   }
   deleteTask(id: number): Observable<void> {
     return this.http.delete<void>(`/api/tasks/${id}`);
+  }
+  addSubtask(taskId: number, title: string): Observable<Task> {
+    return this.http.post<Task>(`/api/tasks/${taskId}/subtasks`, { title });
+  }
+  updateSubtask(taskId: number, subtaskId: number, patch: { title?: string; isDone?: boolean }): Observable<Task> {
+    return this.http.patch<Task>(`/api/tasks/${taskId}/subtasks/${subtaskId}`, patch);
+  }
+  deleteSubtask(taskId: number, subtaskId: number): Observable<Task> {
+    return this.http.delete<Task>(`/api/tasks/${taskId}/subtasks/${subtaskId}`);
   }
   saveAsTemplate(id: number): Observable<Template> {
     return this.http.post<Template>(`/api/tasks/${id}/save-as-template`, {});
@@ -103,6 +118,10 @@ export class Api {
 /** Human-readable message from an API error (RFC 7807 problem details) or a network failure. */
 export function errorMessage(err: unknown): string {
   const e = err as { status?: number; error?: { detail?: string; title?: string } };
-  if (e?.status === 0) return "Can't reach the Focus server. Is it running?";
+  if (e?.status === 0) {
+    return typeof navigator !== 'undefined' && !navigator.onLine
+      ? "You're offline, so this change wasn't saved."
+      : "Can't reach the Focus server. Is it running?";
+  }
   return e?.error?.detail ?? e?.error?.title ?? 'Something went wrong.';
 }

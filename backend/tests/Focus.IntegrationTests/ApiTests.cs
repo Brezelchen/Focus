@@ -62,6 +62,35 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
         Assert.True(day.Done >= 1);
     }
 
+    private sealed record SubtaskDto(int Id, string Title, bool IsDone);
+    private sealed record TaskWithChecklist(int Id, List<SubtaskDto> Subtasks);
+    private sealed record NoteDto(DateOnly Date, string? Mood, string? Reflection);
+
+    [Fact]
+    public async Task Checklist_and_reflection_endpoints()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var client = Client(today.ToString("yyyy-MM-dd"));
+
+        var created = await client.PostAsJsonAsync("/api/tasks", new { title = "Pack", subtasks = new[] { "Passport" } });
+        var task = (await created.Content.ReadFromJsonAsync<TaskWithChecklist>(Json))!;
+        Assert.Single(task.Subtasks);
+
+        var added = await client.PostAsJsonAsync($"/api/tasks/{task.Id}/subtasks", new { title = "Charger" });
+        task = (await added.Content.ReadFromJsonAsync<TaskWithChecklist>(Json))!;
+        Assert.Equal(["Passport", "Charger"], task.Subtasks.Select(s => s.Title));
+
+        var ticked = await client.PatchAsJsonAsync($"/api/tasks/{task.Id}/subtasks/{task.Subtasks[0].Id}", new { isDone = true });
+        task = (await ticked.Content.ReadFromJsonAsync<TaskWithChecklist>(Json))!;
+        Assert.True(task.Subtasks[0].IsDone);
+
+        var note = await client.PutAsJsonAsync($"/api/days/{today:yyyy-MM-dd}/note", new { mood = "great", reflection = "Good day" });
+        note.EnsureSuccessStatusCode();
+        Assert.Equal("great", (await note.Content.ReadFromJsonAsync<NoteDto>(Json))!.Mood);
+        var cleared = await client.PutAsJsonAsync($"/api/days/{today:yyyy-MM-dd}/note", new { mood = (string?)null, reflection = "" });
+        Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
+    }
+
     [Fact]
     public async Task Errors_are_problem_details()
     {

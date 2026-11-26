@@ -13,7 +13,8 @@ public sealed record SaveTemplateRequest(
     string? Icon = null,
     int? EstimateMinutes = null,
     Priority Priority = Priority.Normal,
-    int? TagId = null);
+    int? TagId = null,
+    IReadOnlyList<string>? Checklist = null);
 
 /// <summary>Create a task from a template, on <see cref="Date"/> (null = backlog) at <see cref="Index"/> (null = end).</summary>
 public sealed record InstantiateTemplateRequest(DateOnly? Date, int? Index = null);
@@ -45,7 +46,8 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
     /// <summary>"Save as template": copies a task's fields into a new template and links the task to it.</summary>
     public async Task<TemplateDto> CreateFromTaskAsync(int taskId, CancellationToken ct = default)
     {
-        var task = await db.Tasks.FindAsync([taskId], ct) ?? throw new NotFoundException("Task", taskId);
+        var task = await db.Tasks.Include(t => t.Subtasks).FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException("Task", taskId);
         if (task.TemplateId is { } existingId) return await GetAsync(existingId, ct);
 
         var now = clock.UtcNow;
@@ -56,6 +58,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
             EstimateMinutes = task.EstimateMinutes,
             Priority = task.Priority,
             TagId = task.TagId,
+            Checklist = task.Subtasks.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s => s.Title).ToList(),
             Icon = DefaultIcon,
             CreatedAt = now,
             UseCount = 1,
@@ -94,6 +97,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
             Priority = template.Priority,
             TagId = template.TagId,
             TemplateId = template.Id,
+            Subtasks = TaskService.NewSubtasks(template.Checklist),
         };
         template.UseCount++;
         template.LastUsedAt = clock.UtcNow;
@@ -118,5 +122,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
         template.EstimateMinutes = Guard.Estimate(request.EstimateMinutes);
         template.Priority = request.Priority;
         template.TagId = await tags.EnsureExistsAsync(request.TagId, ct);
+        // Null keeps the checklist (older clients don't send it).
+        if (request.Checklist is { } checklist) template.Checklist = Guard.Checklist(checklist);
     }
 }

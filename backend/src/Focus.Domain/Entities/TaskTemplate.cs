@@ -13,6 +13,9 @@ public class TaskTemplate
     public int? TagId { get; set; }
     public Tag? Tag { get; set; }
 
+    /// <summary>Checklist item titles copied into every task created from this template.</summary>
+    public List<string> Checklist { get; set; } = [];
+
     public int UseCount { get; set; }
     public DateTime? LastUsedAt { get; set; }
     public DateTime CreatedAt { get; set; }

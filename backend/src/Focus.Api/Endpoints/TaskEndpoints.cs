@@ -27,6 +27,14 @@ public static class TaskEndpoints
         tasks.MapPost("/{id:int}/reopen", (int id, TaskService s, CancellationToken ct) => s.ReopenAsync(id, ct));
         tasks.MapPost("/{id:int}/move", (int id, MoveTaskRequest r, TaskService s, CancellationToken ct) => s.MoveAsync(id, r, ct))
             .WithSummary("Move to a day (or the backlog when date is null) at a position");
+        tasks.MapPost("/{id:int}/subtasks", (int id, AddSubtaskRequest r, TaskService s, CancellationToken ct) => s.AddSubtaskAsync(id, r, ct))
+            .WithSummary("Add a checklist item; returns the updated task");
+        tasks.MapPatch("/{id:int}/subtasks/{subtaskId:int}", (int id, int subtaskId, UpdateSubtaskRequest r, TaskService s, CancellationToken ct) =>
+            s.UpdateSubtaskAsync(id, subtaskId, r, ct))
+            .WithSummary("Rename or tick off a checklist item; returns the updated task");
+        tasks.MapDelete("/{id:int}/subtasks/{subtaskId:int}", (int id, int subtaskId, TaskService s, CancellationToken ct) =>
+            s.DeleteSubtaskAsync(id, subtaskId, ct))
+            .WithSummary("Remove a checklist item; returns the updated task");
         tasks.MapPost("/{id:int}/save-as-template", (int id, TemplateService s, CancellationToken ct) => s.CreateFromTaskAsync(id, ct));
         tasks.MapDelete("/{id:int}", async (int id, TaskService s, CancellationToken ct) =>
         {
@@ -38,6 +46,14 @@ public static class TaskEndpoints
         days.MapGet("/{date}", (DateOnly date, DayService s, CancellationToken ct) => s.GetDayAsync(date, ct));
         days.MapPost("/rollover", (DayService s, CancellationToken ct) => s.RolloverAsync(ct))
             .WithSummary("Return unfinished tasks of past days to the backlog");
+        days.MapPut("/{date}/note", async (DateOnly date, SaveDayNoteRequest r, DayService s, CancellationToken ct) =>
+            await s.SaveNoteAsync(date, r, ct) is { } note ? Results.Ok(note) : Results.NoContent())
+            .WithSummary("Save the end-of-day reflection (mood + note). An empty note deletes it.");
+        days.MapDelete("/{date}/note", async (DateOnly date, DayService s, CancellationToken ct) =>
+        {
+            await s.DeleteNoteAsync(date, ct);
+            return Results.NoContent();
+        });
 
         return api;
     }

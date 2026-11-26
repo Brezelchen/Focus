@@ -11,6 +11,8 @@ public interface IFocusDbContext
     DbSet<DayPlanEntry> DayPlanEntries { get; }
     DbSet<FocusSession> FocusSessions { get; }
     DbSet<FocusSessionTask> FocusSessionTasks { get; }
+    DbSet<Subtask> Subtasks { get; }
+    DbSet<DayNote> DayNotes { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

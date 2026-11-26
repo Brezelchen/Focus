@@ -25,6 +25,20 @@
     </div>
 
     <button
+      class="icon-btn palette-btn"
+      type="button"
+      (click)="palette.open()"
+      [attr.aria-label]="'Command palette (' + paletteKeys + ')'"
+      [title]="'Command palette (' + paletteKeys + ')'"
+    >
+      ⌘
+    </button>
+    @if (pwa.canInstall()) {
+      <button class="icon-btn install-btn" type="button" (click)="pwa.install()" aria-label="Install Focus as an app" title="Install Focus as an app">
+        ⬇️
+      </button>
+    }
+    <button
       class="icon-btn pet-btn"
       type="button"
       (click)="pet.toggle()"
@@ -46,7 +60,12 @@
 }
 
 <main class="main" [class.immersive]="immersive()">
-  @if (store.offline() && !immersive()) {
+  @if (!pwa.online() && !immersive()) {
+    <div class="offline glass" role="status">
+      <span aria-hidden="true">📴</span> You're offline. You're seeing what was saved last time; changes need a connection and will
+      fail until you're back.
+    </div>
+  } @else if (store.offline() && !immersive()) {
     <div class="offline glass" role="status">
       <span aria-hidden="true">🔌</span> Can't reach the Focus server. Start it with <code>dotnet run</code> in
       <code>backend/src/Focus.Api</code>.

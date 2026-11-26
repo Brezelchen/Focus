@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Focus.Application.Stats;
 
-public sealed record DayStat(DateOnly Date, int Planned, int Done, int FocusMinutes);
+/// <param name="Mood">Mood from the end-of-day reflection, if any.</param>
+/// <param name="Reflection">The reflection's one-line note, if any.</param>
+public sealed record DayStat(DateOnly Date, int Planned, int Done, int FocusMinutes, Mood? Mood = null, string? Reflection = null);
 
 public sealed record StatsTotals(int Planned, int Done, double CompletionRate, int FocusMinutes, int Sessions);
 
@@ -54,13 +56,18 @@ public sealed class StatsService(IFocusDbContext db, IClock clock)
             .Select(g => new { Date = g.Key, Seconds = g.Sum(s => s.ActualSeconds), Count = g.Count() })
             .ToDictionaryAsync(x => x.Date, ct);
 
+        var notes = await db.DayNotes.AsNoTracking()
+            .Where(n => n.Date >= start && n.Date <= end)
+            .ToDictionaryAsync(n => n.Date, ct);
+
         var byDate = allDays.ToDictionary(d => d.Date);
         var days = new List<DayStat>();
         for (var d = start; d <= end; d = d.AddDays(1))
         {
             byDate.TryGetValue(d, out var counts);
             focus.TryGetValue(d, out var f);
-            days.Add(new DayStat(d, counts?.Planned ?? 0, counts?.Done ?? 0, (f?.Seconds ?? 0) / 60));
+            notes.TryGetValue(d, out var note);
+            days.Add(new DayStat(d, counts?.Planned ?? 0, counts?.Done ?? 0, (f?.Seconds ?? 0) / 60, note?.Mood, note?.Reflection));
         }
 
         var planned = days.Sum(d => d.Planned);

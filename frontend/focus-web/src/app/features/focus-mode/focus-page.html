@@ -145,6 +145,19 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9" /></svg>
             </button>
             <span class="t-title">{{ t.title }}</span>
+            @if (t.subtasks.length) {
+              <span class="steps-count">{{ stepsDone(t) }}/{{ t.subtasks.length }}</span>
+              <ul class="run-steps">
+                @for (s of t.subtasks; track s.id) {
+                  <li [class.ticked]="s.isDone">
+                    <label>
+                      <input type="checkbox" [checked]="s.isDone" (change)="store.toggleSubtask(t, s)" (mousedown)="$event.stopPropagation()" />
+                      <span>{{ s.title }}</span>
+                    </label>
+                  </li>
+                }
+              </ul>
+            }
           </div>
         }
         @for (title of doneInSession(); track $index) {

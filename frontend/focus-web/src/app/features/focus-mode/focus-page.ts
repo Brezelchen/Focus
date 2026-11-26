@@ -1,4 +1,5 @@
 import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup, moveItemInArray } from '@angular/cdk/drag-drop';
+import { Dialog } from '@angular/cdk/dialog';
 import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
@@ -47,6 +48,7 @@ export class FocusPage {
   private readonly router = inject(Router);
   private readonly title = inject(Title);
   private readonly document = inject(DOCUMENT);
+  private readonly dialog = inject(Dialog);
 
   protected readonly presets = PRESETS;
   protected readonly channels = AMBIENCE_CHANNELS;
@@ -253,6 +255,10 @@ export class FocusPage {
     await this.store.complete(task, { x: event.clientX, y: event.clientY });
   }
 
+  protected stepsDone(task: Task): number {
+    return task.subtasks.filter((s) => s.isDone).length;
+  }
+
   protected addTask(task: Task): void {
     this.store.addToFocus(task.id);
     this.sessionTaskTitles.set(task.id, task.title);
@@ -308,7 +314,7 @@ export class FocusPage {
 
   protected onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement;
-    if (target.closest('input, textarea, button, [role="slider"]')) return;
+    if (target.closest('input, textarea, button, [role="slider"]') || this.dialog.openDialogs.length) return;
     if (e.key === ' ') {
       e.preventDefault();
       if (this.phase() === 'running') this.pause();

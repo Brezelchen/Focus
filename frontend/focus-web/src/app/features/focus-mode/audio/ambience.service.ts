@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, Signal, inject, signal } from '@angular/core';
 import { BrownLayer, FireLayer, RainLayer } from './ambient-layers';
-import { AmbienceLayer, NoiseBank, createImpulseResponse, createNoiseBank, midiToHz, rand } from './audio-utils';
+import { AmbienceLayer, NoiseBank, createImpulseResponse, createNoiseBank, midiToHz } from './audio-utils';
 import { LofiMusic } from './lofi-music';
 
 export type AmbienceChannel = 'music' | 'rain' | 'fire' | 'brown';
@@ -51,8 +51,7 @@ interface Engine {
  * Graph: layer → channel gain → master gain ─┐
  *                                 sfx bus ───┴→ gentle compressor → destination
  *
- * The AudioContext is created lazily on the first `start()`, `playChime()` or
- * `playPop()` call. Browsers require `start()` to be triggered by a user gesture.
+ * The AudioContext is created lazily on the first `start()` or `playChime()` call. Browsers require `start()` to be triggered by a user gesture.
  * When Web Audio is unavailable (SSR, tests, old browsers) every method is a no-op.
  */
 @Injectable({ providedIn: 'root' })
@@ -143,29 +142,6 @@ export class AmbienceService {
       const notes = [65, 69, 72, 76, 79]; // F4 A4 C5 E5 G5
       notes.forEach((midi, i) => this.bell(engine, midi, t + i * 0.16, i === notes.length - 1 ? 2.2 : 1.6));
       return 3.2;
-    });
-  }
-
-  /** Tiny "pop/pluck" for completing a task, ~150 ms. */
-  playPop(): void {
-    this.withSfx((engine, t) => {
-      const { ctx } = engine;
-      // Bubble-like pop: a sine whose pitch sweeps quickly upward, with a very short envelope.
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(380, t);
-      osc.frequency.exponentialRampToValueAtTime(900, t + 0.05);
-      const env = ctx.createGain();
-      env.gain.setValueAtTime(0, t);
-      env.gain.linearRampToValueAtTime(0.35, t + 0.004);
-      env.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-      osc.connect(env).connect(engine.sfx);
-      osc.start(t);
-      osc.stop(t + 0.16);
-      osc.onended = () => env.disconnect();
-      // A soft, high pluck (C6 or D6) adds a satisfying "tink".
-      this.bell(engine, 84 + Math.round(rand(0, 1)) * 2, t + 0.02, 0.18, 0.12);
-      return 0.5;
     });
   }
 

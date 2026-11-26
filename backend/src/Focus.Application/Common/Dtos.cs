@@ -21,7 +21,10 @@ public sealed record TaskDto(
     int? TemplateId,
     DateTime CreatedAt,
     DateTime? CompletedAt,
-    int PostponedCount);
+    int PostponedCount,
+    IReadOnlyList<SubtaskDto> Subtasks);
+
+public sealed record SubtaskDto(int Id, string Title, bool IsDone);
 
 public sealed record TemplateDto(
     int Id,
@@ -31,5 +34,6 @@ public sealed record TemplateDto(
     int? EstimateMinutes,
     Priority Priority,
     TagDto? Tag,
+    IReadOnlyList<string> Checklist,
     int UseCount,
     DateTime? LastUsedAt);

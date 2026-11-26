@@ -10,21 +10,22 @@ import {
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { addDays, formatMinutes, greeting, longDate, relativeDayName } from '../../core/dates';
-import { Task, TemplateInput, Template } from '../../core/models';
+import { Subtask, Task, Template } from '../../core/models';
 import { PetService } from '../../core/pet.service';
 import { PlannerStore } from '../../core/planner.store';
 import { ProgressRing } from '../../shared/progress-ring';
 import { Pup, PupMood } from '../../shared/pup';
 import { TaskAction, TaskCard } from '../../shared/task-card';
+import { DayReflection } from './day-reflection';
 import { MorningRitual } from './morning-ritual';
-import { TaskEditor, TaskEditorData } from './task-editor';
+import { TaskDialogs } from './task-dialogs';
 
 /** What's being dragged: an existing task, or a template that will create a new task on drop. */
 type DragItem = { kind: 'task'; task: Task } | { kind: 'template'; template: Template };
 
 @Component({
   selector: 'app-today-page',
-  imports: [CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder, TaskCard, ProgressRing, Pup],
+  imports: [CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder, TaskCard, ProgressRing, Pup, DayReflection],
   templateUrl: './today-page.html',
   styleUrl: './today-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +36,7 @@ export class TodayPage {
   private readonly pet = inject(PetService);
   private readonly dialog = inject(Dialog);
   private readonly router = inject(Router);
+  private readonly dialogs = inject(TaskDialogs);
 
   private readonly quickInput = viewChild<ElementRef<HTMLInputElement>>('quick');
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchBox');
@@ -199,26 +201,21 @@ export class TodayPage {
   }
 
   protected edit(task: Task): void {
-    this.openEditor({ item: task, kind: 'task' }, (input) => this.store.update(task, input));
+    this.dialogs.editTask(task);
+  }
+
+  protected toggleSubtask(task: Task, subtask: Subtask): void {
+    void this.store.toggleSubtask(task, subtask);
   }
 
   protected editTemplate(template: Template, event: Event): void {
     event.preventDefault();
-    this.openEditor({ item: template, kind: 'template' }, (input) => this.store.updateTemplate(template, input));
+    this.dialogs.editTemplate(template);
   }
 
   protected deleteTemplate(template: Template, event: Event): void {
     event.stopPropagation();
     void this.store.deleteTemplate(template);
-  }
-
-  private openEditor(data: TaskEditorData, save: (input: TemplateInput) => Promise<void>): void {
-    const ref = this.dialog.open<TemplateInput, TaskEditorData>(TaskEditor, {
-      data,
-      panelClass: 'focus-dialog',
-      backdropClass: 'focus-backdrop',
-    });
-    ref.closed.subscribe((input) => input && void save(input));
   }
 
   protected startFocus(): void {
@@ -230,6 +227,7 @@ export class TodayPage {
   protected onKey(e: KeyboardEvent): void {
     const target = e.target as HTMLElement;
     if (e.ctrlKey || e.metaKey || e.altKey || target.closest('input, textarea, [contenteditable], [role="dialog"]')) return;
+    if (this.dialog.openDialogs.length) return; // e.g. the command palette, before it has focus
     if (e.key === 'n') {
       e.preventDefault();
       this.quickInput()?.nativeElement.focus();
@@ -242,6 +240,8 @@ export class TodayPage {
       void this.store.shiftDay(1);
     } else if (e.key === 't') {
       void this.store.selectDate(this.store.today());
+    } else if (e.key === 'r' && !this.store.isFuture()) {
+      this.store.reflectRequested.set(true);
     }
   }
 

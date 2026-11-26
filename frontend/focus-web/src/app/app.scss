@@ -140,6 +140,10 @@
   }
 }
 
+.palette-btn {
+  font: 700 18px var(--font-ui);
+}
+
 .pet-btn {
   font-size: 20px;
   transition: transform 0.35s var(--ease-spring), background 0.2s;
@@ -191,8 +195,12 @@
     display: none;
   }
   .pet-btn,
-  .theme-btn {
+  .theme-btn,
+  .palette-btn {
     flex: none;
+  }
+  .install-btn {
+    display: none; /* still offered in the command palette */
   }
   .links {
     flex-direction: row;

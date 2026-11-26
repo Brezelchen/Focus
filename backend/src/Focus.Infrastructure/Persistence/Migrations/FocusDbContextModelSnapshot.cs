@@ -17,6 +17,27 @@ namespace Focus.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.15");
 
+            modelBuilder.Entity("Focus.Domain.Entities.DayNote", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mood")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reflection")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Date");
+
+                    b.ToTable("DayNotes");
+                });
+
             modelBuilder.Entity("Focus.Domain.Entities.DayPlanEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -99,6 +120,33 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.HasIndex("TaskItemId");
 
                     b.ToTable("FocusSessionTasks");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.Subtask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDone")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId", "SortOrder");
+
+                    b.ToTable("Subtasks");
                 });
 
             modelBuilder.Entity("Focus.Domain.Entities.Tag", b =>
@@ -194,6 +242,10 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.PrimitiveCollection<string>("Checklist")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -265,6 +317,17 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Navigation("TaskItem");
                 });
 
+            modelBuilder.Entity("Focus.Domain.Entities.Subtask", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.TaskItem", "TaskItem")
+                        .WithMany("Subtasks")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
+                });
+
             modelBuilder.Entity("Focus.Domain.Entities.TaskItem", b =>
                 {
                     b.HasOne("Focus.Domain.Entities.Tag", "Tag")
@@ -300,6 +363,8 @@ namespace Focus.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Focus.Domain.Entities.TaskItem", b =>
                 {
                     b.Navigation("PlanEntries");
+
+                    b.Navigation("Subtasks");
                 });
 #pragma warning restore 612, 618
         }

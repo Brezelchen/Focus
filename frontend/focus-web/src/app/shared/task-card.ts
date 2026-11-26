@@ -1,7 +1,7 @@
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
 import { DueState, dayDiff, dueLabel, formatMinutes, todayIso } from '../core/dates';
-import { Task } from '../core/models';
+import { Subtask, Task } from '../core/models';
 
 export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 'toBacklog' | 'reopen';
 
@@ -41,6 +41,19 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
         @if (task().tag; as tag) {
           <span class="chip" [attr.data-color]="tag.color">#{{ tag.name }}</span>
         }
+        @if (checklist(); as c) {
+          <button
+            type="button"
+            class="chip checklist-chip"
+            [attr.data-color]="c.done === c.total ? 'mint' : 'lavender'"
+            [attr.aria-expanded]="expanded()"
+            [attr.aria-label]="'Checklist: ' + c.done + ' of ' + c.total + ' done. ' + (expanded() ? 'Hide' : 'Show') + ' steps.'"
+            (click)="expanded.set(!expanded())"
+            (dblclick)="$event.stopPropagation()"
+          >
+            ☑ {{ c.done }}/{{ c.total }}
+          </button>
+        }
         @if (task().estimateMinutes) {
           <span class="chip" data-color="sky">⏱ {{ estimate() }}</span>
         }
@@ -56,6 +69,25 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
           <span class="chip" data-color="lavender" title="Still want this?">🕸 {{ staleDays() }}d</span>
         }
       </span>
+      @if (expanded() && task().subtasks.length) {
+        <ul class="checklist" (dblclick)="$event.stopPropagation()" animate.enter="enter-fade-up">
+          @for (s of task().subtasks; track s.id) {
+            <li [class.ticked]="s.isDone">
+              <label>
+                <input
+                  type="checkbox"
+                  [checked]="s.isDone"
+                  [disabled]="readonly()"
+                  (change)="subtaskToggle.emit(s)"
+                  (mousedown)="$event.stopPropagation()"
+                  (touchstart)="$event.stopPropagation()"
+                />
+                <span>{{ s.title }}</span>
+              </label>
+            </li>
+          }
+        </ul>
+      }
     </div>
 
     @if (!readonly()) {
@@ -67,7 +99,7 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
         @if (isDone()) {
           <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('reopen')">↩️ Mark as not done</button>
         } @else {
-          <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('edit')">✏️ Edit</button>
+          <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('edit')">✏️ Edit{{ task().subtasks.length ? '' : ' / add checklist' }}</button>
           @if (location() !== 'focus') {
             <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('focus')">🎧 Add to focus</button>
           }
@@ -94,8 +126,15 @@ export class TaskCard {
 
   readonly toggle = output<{ x: number; y: number }>();
   readonly action = output<TaskAction>();
+  readonly subtaskToggle = output<Subtask>();
 
   protected readonly isDone = computed(() => this.task().status === 'done');
+  protected readonly checklist = computed(() => {
+    const items = this.task().subtasks ?? [];
+    return items.length ? { done: items.filter((s) => s.isDone).length, total: items.length } : null;
+  });
+  /** Steps are shown on the day's open, full-size cards; collapsed in the backlog and once done. */
+  protected readonly expanded = linkedSignal(() => !this.compact() && !this.isDone() && this.location() !== 'backlog');
   protected readonly estimate = computed(() => formatMinutes(this.task().estimateMinutes));
   /** Hidden once the task is done: the deadline no longer matters. */
   protected readonly due = computed(() => {

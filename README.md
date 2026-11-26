@@ -19,12 +19,16 @@ See [PLAN.md](PLAN.md) for the full plan, decisions and roadmap.
   - Drop tasks into the focus tray and pick a duration.
   - Ambient sound and lofi music, generated live in the browser.
   - Keyboard: <kbd>Space</kbd> pause, <kbd>F</kbd> full screen, <kbd>M</kbd> sound.
+- **Checklists**: break a task into steps in the editor (drag to reorder). Tick steps off right on the card or in Focus Mode; when every step is done you're offered to complete the task. Templates keep their checklist, so "Laundry" always comes with *wash, dry, fold*.
+- **Command palette**: <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>⌘</kbd>+<kbd>K</kbd> on a Mac) or the ⌘ button. Jump anywhere, find a task and complete / move / edit / focus it, type `fri` or `24.12` to go to that day, or type any text to add it as a task (<kbd>Shift</kbd>+<kbd>Enter</kbd> for the backlog).
+- **End-of-day reflection**: a mood and one line about your day, at the bottom of Today (opens by itself in the evening, or press <kbd>R</kbd>). Reflections show in the Stats journal and the calendar tooltips.
+- **Installable & offline-friendly**: install it from the browser or the ⌘ palette. The production build caches the app and your most recent data, so it opens and shows your last plan without a network or server (changes need a connection). A toast offers a reload when a new version is ready.
 - **Morning ritual**: unfinished tasks go back to the backlog overnight. On first open you get yesterday's recap and a one-click "bring back to today".
 - **Stats**: daily completion rate (done ÷ planned), streaks, focus minutes, a 26-week heatmap and insights.
 - **Themes**: light, dark or automatic, with gradients that shift from sunrise to night.
 - **Dog or cat**: the 🐶/🐱 button above the theme toggle switches your companion everywhere: the Today mascot, the morning ritual and Focus Mode.
 
-Other keyboard shortcuts on Today: <kbd>N</kbd> quick add, <kbd>/</kbd> search backlog, <kbd>←</kbd>/<kbd>→</kbd> change day, <kbd>T</kbd> back to today.
+Other keyboard shortcuts on Today: <kbd>N</kbd> quick add, <kbd>/</kbd> search backlog, <kbd>←</kbd>/<kbd>→</kbd> change day, <kbd>T</kbd> back to today, <kbd>R</kbd> reflect. <kbd>Ctrl</kbd>+<kbd>K</kbd> works everywhere.
 
 ## Prerequisites
 
@@ -63,7 +67,7 @@ The service worker is only active in production builds. The database location ca
 ## Tests
 
 ```bash
-cd backend && dotnet test             # unit tests (planning history, stats, quick add) + API integration tests
+cd backend && dotnet test             # unit tests (planning history, stats, quick add, checklists, reflections) + API integration tests
 cd frontend/focus-web && npx ng test  # Vitest unit tests
 ```
 

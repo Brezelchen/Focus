@@ -32,4 +32,7 @@ public class TaskItem
     public DateTime? CompletedAt { get; set; }
 
     public List<DayPlanEntry> PlanEntries { get; set; } = [];
+
+    /// <summary>Checklist items, ordered by <see cref="Subtask.SortOrder"/>.</summary>
+    public List<Subtask> Subtasks { get; set; } = [];
 }

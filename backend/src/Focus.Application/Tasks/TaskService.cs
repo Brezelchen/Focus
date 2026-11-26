@@ -35,10 +35,15 @@ public sealed class TaskService(IFocusDbContext db, IClock clock, TagService tag
             Priority = request.Priority,
             TagId = await tags.EnsureExistsAsync(request.TagId, ct),
             DueDate = request.DueDate,
+            Subtasks = NewSubtasks(Guard.Checklist(request.Subtasks)),
         };
         await AddAsync(task, request.PlannedDate, ct);
         return await GetAsync(task.Id, ct);
     }
+
+    /// <summary>Fresh, unchecked checklist items in the given order.</summary>
+    internal static List<Subtask> NewSubtasks(IEnumerable<string> titles) =>
+        titles.Select((title, i) => new Subtask { Title = title, SortOrder = i }).ToList();
 
     public async Task<TaskDto> QuickAddAsync(QuickAddRequest request, CancellationToken ct = default)
     {
@@ -80,8 +85,77 @@ public sealed class TaskService(IFocusDbContext db, IClock clock, TagService tag
         task.TagId = await tags.EnsureExistsAsync(request.TagId, ct);
         task.DueDate = request.DueDate;
         task.UpdatedAt = clock.UtcNow;
+        if (request.Subtasks is { } subtasks) await ReplaceSubtasksAsync(task, subtasks, ct);
         await db.SaveChangesAsync(ct);
         return await GetAsync(id, ct);
+    }
+
+    // ---- Checklist ------------------------------------------------------------------------------
+
+    public async Task<TaskDto> AddSubtaskAsync(int taskId, AddSubtaskRequest request, CancellationToken ct = default)
+    {
+        var task = await db.Tasks.Include(t => t.Subtasks).FirstOrDefaultAsync(t => t.Id == taskId, ct)
+            ?? throw new NotFoundException("Task", taskId);
+        if (task.Subtasks.Count >= Subtask.MaxPerTask)
+            throw new ValidationException($"A checklist can have at most {Subtask.MaxPerTask} items.");
+
+        task.Subtasks.Add(new Subtask
+        {
+            Title = Guard.SubtaskTitle(request.Title),
+            SortOrder = task.Subtasks.Count == 0 ? 0 : task.Subtasks.Max(s => s.SortOrder) + 1,
+        });
+        task.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    public async Task<TaskDto> UpdateSubtaskAsync(int taskId, int subtaskId, UpdateSubtaskRequest request, CancellationToken ct = default)
+    {
+        var subtask = await FindSubtaskAsync(taskId, subtaskId, ct);
+        if (request.Title is not null) subtask.Title = Guard.SubtaskTitle(request.Title);
+        if (request.IsDone is { } done) subtask.IsDone = done;
+        subtask.TaskItem.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    public async Task<TaskDto> DeleteSubtaskAsync(int taskId, int subtaskId, CancellationToken ct = default)
+    {
+        var subtask = await FindSubtaskAsync(taskId, subtaskId, ct);
+        subtask.TaskItem.UpdatedAt = clock.UtcNow;
+        db.Subtasks.Remove(subtask);
+        await db.SaveChangesAsync(ct);
+        return await GetAsync(taskId, ct);
+    }
+
+    private async Task<Subtask> FindSubtaskAsync(int taskId, int subtaskId, CancellationToken ct) =>
+        await db.Subtasks.Include(s => s.TaskItem).FirstOrDefaultAsync(s => s.Id == subtaskId && s.TaskItemId == taskId, ct)
+        ?? throw new NotFoundException("Checklist item", subtaskId);
+
+    /// <summary>Makes the task's checklist match <paramref name="inputs"/> (order included). Does not save.</summary>
+    private async Task ReplaceSubtasksAsync(TaskItem task, IReadOnlyList<SubtaskInput> inputs, CancellationToken ct)
+    {
+        var titles = Guard.Checklist(inputs.Select(i => i.Title)); // validates titles and the size limit
+        if (titles.Count != inputs.Count) throw new ValidationException("Checklist items need a title.");
+
+        var existing = await db.Subtasks.Where(s => s.TaskItemId == task.Id).ToDictionaryAsync(s => s.Id, ct);
+        var kept = new HashSet<int>();
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            var input = inputs[i];
+            if (input.Id is { } id && existing.TryGetValue(id, out var subtask) && kept.Add(id))
+            {
+                subtask.Title = titles[i];
+                subtask.IsDone = input.IsDone;
+                subtask.SortOrder = i;
+            }
+            else
+            {
+                db.Subtasks.Add(new Subtask { TaskItemId = task.Id, Title = titles[i], IsDone = input.IsDone, SortOrder = i });
+            }
+        }
+
+        db.Subtasks.RemoveRange(existing.Values.Where(s => !kept.Contains(s.Id)));
     }
 
     /// <summary>

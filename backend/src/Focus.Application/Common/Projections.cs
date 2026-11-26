@@ -20,7 +20,8 @@ public static class Projections
         t.TemplateId,
         t.CreatedAt,
         t.CompletedAt,
-        t.PlanEntries.Count(e => e.Outcome == PlanOutcome.NotCompleted));
+        t.PlanEntries.Count(e => e.Outcome == PlanOutcome.NotCompleted),
+        t.Subtasks.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s => new SubtaskDto(s.Id, s.Title, s.IsDone)).ToList());
 
     public static readonly Expression<Func<TaskTemplate, TemplateDto>> Template = t => new TemplateDto(
         t.Id,
@@ -30,6 +31,7 @@ public static class Projections
         t.EstimateMinutes,
         t.Priority,
         t.Tag == null ? null : new TagDto(t.Tag.Id, t.Tag.Name, t.Tag.Color),
+        t.Checklist,
         t.UseCount,
         t.LastUsedAt);
 }

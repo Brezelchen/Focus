@@ -61,7 +61,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Day</th><th>Planned</th><th>Done</th><th>Focus</th></tr>
+              <tr><th>Day</th><th>Planned</th><th>Done</th><th>Focus</th><th>Mood</th></tr>
             </thead>
             <tbody>
               @for (d of summary()?.days ?? []; track d.date) {
@@ -70,6 +70,7 @@
                   <td>{{ d.planned }}</td>
                   <td>{{ d.done }}</td>
                   <td>{{ fmt(d.focusMinutes) || '–' }}</td>
+                  <td [title]="d.reflection ?? ''">{{ moodEmoji(d.mood) || '–' }}</td>
                 </tr>
               }
             </tbody>
@@ -119,6 +120,29 @@
           </ul>
           <p class="muted tip">Tip: break these into smaller steps, or let them go.</p>
         }
+      }
+    </div>
+
+    <div class="card glass wide">
+      <div class="card-head">
+        <h2>🌙 Journal</h2>
+        <a class="link-btn" routerLink="/" (click)="reflectToday()">Reflect on today</a>
+      </div>
+      @if (journal().length) {
+        <ul class="journal">
+          @for (d of journal(); track d.date) {
+            <li>
+              <span class="j-mood" aria-hidden="true">{{ moodEmoji(d.mood) || '·' }}</span>
+              <span class="j-date muted">{{ rowDate(d.date) }}</span>
+              <span class="j-text">{{ d.reflection || moodLabel(d.mood) }}</span>
+              @if (d.planned) {
+                <span class="chip" data-color="lavender">{{ d.done }}/{{ d.planned }}</span>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted empty">At the end of a day, jot down one line and a mood. They'll gather here and in the calendar below.</p>
       }
     </div>
 

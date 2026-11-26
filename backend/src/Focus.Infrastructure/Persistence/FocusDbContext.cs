@@ -13,6 +13,8 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
     public DbSet<DayPlanEntry> DayPlanEntries => Set<DayPlanEntry>();
     public DbSet<FocusSession> FocusSessions => Set<FocusSession>();
     public DbSet<FocusSessionTask> FocusSessionTasks => Set<FocusSessionTask>();
+    public DbSet<Subtask> Subtasks => Set<Subtask>();
+    public DbSet<DayNote> DayNotes => Set<DayNote>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -39,6 +41,7 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
             e.Property(t => t.Title).HasMaxLength(TaskItem.TitleMaxLength).IsRequired();
             e.Property(t => t.Notes).HasMaxLength(4000);
             e.Property(t => t.Icon).HasMaxLength(16).IsRequired();
+            e.PrimitiveCollection(t => t.Checklist); // stored as a JSON array
             e.HasOne(t => t.Tag).WithMany().HasForeignKey(t => t.TagId).OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -46,6 +49,19 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
         {
             e.HasOne(p => p.TaskItem).WithMany(t => t.PlanEntries).HasForeignKey(p => p.TaskItemId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(p => new { p.Date, p.TaskItemId }).IsUnique();
+        });
+
+        model.Entity<Subtask>(e =>
+        {
+            e.Property(s => s.Title).HasMaxLength(Subtask.TitleMaxLength).IsRequired();
+            e.HasOne(s => s.TaskItem).WithMany(t => t.Subtasks).HasForeignKey(s => s.TaskItemId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(s => new { s.TaskItemId, s.SortOrder });
+        });
+
+        model.Entity<DayNote>(e =>
+        {
+            e.HasKey(n => n.Date);
+            e.Property(n => n.Reflection).HasMaxLength(DayNote.ReflectionMaxLength);
         });
 
         model.Entity<FocusSession>(e =>

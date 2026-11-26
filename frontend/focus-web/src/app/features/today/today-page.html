@@ -119,6 +119,7 @@
           [readonly]="store.isPast()"
           (toggle)="toggle(task, $event)"
           (action)="onAction(task, $event)"
+          (subtaskToggle)="toggleSubtask(task, $event)"
           animate.enter="enter-fade-up"
         >
           <div *cdkDragPlaceholder class="drop-placeholder"></div>
@@ -152,12 +153,17 @@
                 [readonly]="store.isPast()"
                 (toggle)="toggle(task, $event)"
                 (action)="onAction(task, $event)"
+                (subtaskToggle)="toggleSubtask(task, $event)"
                 animate.enter="enter-fade-up"
               />
             }
           </div>
         }
       </div>
+    }
+
+    @if (!store.isFuture()) {
+      <app-day-reflection />
     }
   </section>
 
@@ -259,6 +265,7 @@
             [compact]="true"
             (toggle)="toggle(task, $event)"
             (action)="onAction(task, $event)"
+            (subtaskToggle)="toggleSubtask(task, $event)"
             animate.enter="enter-fade-up"
           >
             <div *cdkDragPlaceholder class="drop-placeholder small"></div>

@@ -10,7 +10,13 @@ namespace Focus.Application.Days;
 /// <param name="Planned">Everything that was on this day's list (including tasks that left it unfinished).</param>
 /// <param name="Done">Planned tasks that were completed.</param>
 /// <param name="RemainingEstimateMinutes">Sum of estimates of the open tasks.</param>
-public sealed record DayDto(DateOnly Date, IReadOnlyList<TaskDto> Tasks, int Planned, int Done, int RemainingEstimateMinutes);
+/// <param name="Note">The end-of-day reflection, if one was written.</param>
+public sealed record DayDto(DateOnly Date, IReadOnlyList<TaskDto> Tasks, int Planned, int Done, int RemainingEstimateMinutes, DayNoteDto? Note);
+
+public sealed record DayNoteDto(DateOnly Date, Mood? Mood, string? Reflection, DateTime UpdatedAt);
+
+/// <summary>Saving a note with neither a mood nor a reflection deletes it.</summary>
+public sealed record SaveDayNoteRequest(Mood? Mood, string? Reflection);
 
 public sealed record DaySummary(DateOnly Date, int Planned, int Done);
 
@@ -33,8 +39,49 @@ public sealed class DayService(IFocusDbContext db, IClock clock)
 
         var (planned, done) = await CountAsync(date, ct);
         var remaining = ordered.Where(t => t.Status == TaskItemStatus.Open).Sum(t => t.EstimateMinutes ?? 0);
-        return new DayDto(date, ordered, planned, done, remaining);
+        var note = await db.DayNotes.AsNoTracking().Where(n => n.Date == date)
+            .Select(n => new DayNoteDto(n.Date, n.Mood, n.Reflection, n.UpdatedAt)).FirstOrDefaultAsync(ct);
+        return new DayDto(date, ordered, planned, done, remaining, note);
     }
+
+    // ---- End-of-day reflection --------------------------------------------------------------------
+
+    /// <summary>Creates, updates or (when empty) deletes the reflection for a day. Returns null when deleted.</summary>
+    public async Task<DayNoteDto?> SaveNoteAsync(DateOnly date, SaveDayNoteRequest request, CancellationToken ct = default)
+    {
+        if (date > clock.Today) throw new ValidationException("You can only reflect on today or past days.");
+        if (request.Mood is { } m && !Enum.IsDefined(m)) throw new ValidationException("Unknown mood.");
+
+        var reflection = request.Reflection?.Trim();
+        if (string.IsNullOrEmpty(reflection)) reflection = null;
+        if (reflection?.Length > DayNote.ReflectionMaxLength)
+            throw new ValidationException($"A reflection can be at most {DayNote.ReflectionMaxLength} characters.");
+
+        var note = await db.DayNotes.FindAsync([date], ct);
+        if (request.Mood is null && reflection is null)
+        {
+            if (note is not null)
+            {
+                db.DayNotes.Remove(note);
+                await db.SaveChangesAsync(ct);
+            }
+            return null;
+        }
+
+        if (note is null)
+        {
+            note = new DayNote { Date = date };
+            db.DayNotes.Add(note);
+        }
+        note.Mood = request.Mood;
+        note.Reflection = reflection;
+        note.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return new DayNoteDto(note.Date, note.Mood, note.Reflection, note.UpdatedAt);
+    }
+
+    public async Task DeleteNoteAsync(DateOnly date, CancellationToken ct = default) =>
+        await SaveNoteAsync(date, new SaveDayNoteRequest(null, null), ct);
 
     /// <summary>
     /// Sends every unfinished task from past days back to the backlog (top of the backlog, oldest day first),

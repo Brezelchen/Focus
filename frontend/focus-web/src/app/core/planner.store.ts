@@ -3,7 +3,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { Api, errorMessage } from './api';
 import { CelebrateService } from './celebrate.service';
 import { addDays, todayIso } from './dates';
-import { Day, IsoDate, RolloverResult, Tag, Task, TaskInput, Template, TemplateInput } from './models';
+import { Day, DayNote, IsoDate, Mood, RolloverResult, Subtask, Tag, Task, TaskInput, Template, TemplateInput } from './models';
 import { ToastService } from './toast.service';
 import { parseQuickAdd } from './quick-add';
 
@@ -29,6 +29,8 @@ export class PlannerStore {
   readonly ritual = signal<RolloverResult | null>(null);
   readonly loaded = signal(false);
   readonly offline = signal(false);
+  /** Set to ask the reflection card on Today to open and focus (e.g. from the command palette); the card clears it. */
+  readonly reflectRequested = signal(false);
 
   /** Task ids dropped into the focus zone, in order. */
   readonly focusIds = signal<number[]>(readFocusIds());
@@ -37,6 +39,7 @@ export class PlannerStore {
   readonly doneTasks = computed(() => this.day()?.tasks.filter((t) => t.status === 'done') ?? []);
   readonly isPast = computed(() => this.selectedDate() < this.today());
   readonly isToday = computed(() => this.selectedDate() === this.today());
+  readonly isFuture = computed(() => this.selectedDate() > this.today());
   readonly progress = computed(() => {
     const d = this.day();
     return d && d.planned ? d.done / d.planned : 0;
@@ -55,6 +58,12 @@ export class PlannerStore {
 
   /** App start: send yesterday's leftovers back to the backlog, then load everything. */
   async init(): Promise<void> {
+    // Without a network the rollover can't run; cached reads (service worker) still load below.
+    if (!navigator.onLine) {
+      await Promise.all([this.refresh(), this.loadTemplates(), this.loadTags()]).catch(() => undefined);
+      this.loaded.set(true);
+      return;
+    }
     try {
       const result = await firstValueFrom(this.api.rollover());
       this.offline.set(false);
@@ -186,6 +195,56 @@ export class PlannerStore {
     this.toast.show(`Deleted "${task.title}"`);
   }
 
+  // ---- Checklist ----------------------------------------------------------------------------
+
+  async toggleSubtask(task: Task, subtask: Subtask): Promise<void> {
+    const isDone = !subtask.isDone;
+    const subtasks = task.subtasks.map((s) => (s.id === subtask.id ? { ...s, isDone } : s));
+    this.patchLocal(task.id, { subtasks });
+
+    const updated = await this.run(this.api.updateSubtask(task.id, subtask.id, { isDone }));
+    if (!updated) return;
+    this.replaceLocal(updated);
+
+    // Every step ticked off: offer to finish the task itself.
+    if (isDone && updated.status === 'open' && updated.subtasks.length > 1 && updated.subtasks.every((s) => s.isDone)) {
+      this.toast.show(`All steps of "${updated.title}" are done.`, 'success', {
+        label: 'Complete task',
+        run: () => void this.complete(updated),
+      });
+    }
+  }
+
+  async addSubtask(task: Task, title: string): Promise<boolean> {
+    const updated = await this.run(this.api.addSubtask(task.id, title));
+    if (updated) this.replaceLocal(updated);
+    return !!updated;
+  }
+
+  async deleteSubtask(task: Task, subtask: Subtask): Promise<void> {
+    this.patchLocal(task.id, { subtasks: task.subtasks.filter((s) => s.id !== subtask.id) });
+    const updated = await this.run(this.api.deleteSubtask(task.id, subtask.id));
+    if (updated) this.replaceLocal(updated);
+  }
+
+  // ---- End-of-day reflection ----------------------------------------------------------------
+
+  /** Saves the reflection for a day. An empty mood + text deletes it. Returns false on failure. */
+  async saveNote(date: IsoDate, mood: Mood | null, reflection: string): Promise<boolean> {
+    const text = reflection.trim();
+    let note: DayNote | null;
+    try {
+      // The server answers 204 (null) when an empty note was deleted.
+      note = await firstValueFrom(this.api.saveNote(date, mood, text || null), { defaultValue: null });
+    } catch (err) {
+      this.toast.error(errorMessage(err));
+      return false;
+    }
+    this.day.update((d) => (d && d.date === date ? { ...d, note } : d));
+    if (note) this.toast.show(date === this.today() ? 'Saved. Rest well 🌙' : 'Reflection saved 🌙', 'success');
+    return true;
+  }
+
   // ---- Templates ----------------------------------------------------------------------------
 
   async saveAsTemplate(task: Task): Promise<void> {
@@ -269,6 +328,12 @@ export class PlannerStore {
 
   private patchLocal(id: number, patch: Partial<Task>): void {
     this.day.update((d) => (d ? { ...d, tasks: d.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) } : d));
+    this.backlog.update((list) => (list.some((t) => t.id === id) ? list.map((t) => (t.id === id ? { ...t, ...patch } : t)) : list));
+  }
+
+  /** Swaps in a fresh copy of a task from the server wherever it's shown. */
+  private replaceLocal(task: Task): void {
+    this.patchLocal(task.id, task);
   }
 
   private applyLocalMove(task: Task, target: 'day' | 'backlog', index: number): void {

@@ -84,13 +84,13 @@ Marked **[MVP]** if I'd include them in the first version, **[Later]** otherwise
 4. **Ambient sounds in Focus Mode [MVP-lite]** — Rain, café, crackling fire, lofi beat loop; volume sliders, mixable. (Royalty-free / CC0 sources only.)
 5. **Pomodoro cycles [Later]** — Optional auto-break after a focus block (scene switches: girl stretches, dog asks for a walk 🐕).
 6. **Celebrations & micro-delight [MVP]** — Confetti on task completion, special animation when the day hits 100%, the dog in the corner of the Today view reacting to progress.
-7. **Command palette (`Ctrl+K`) & keyboard shortcuts [Later]** — Move tasks, start focus, jump to dates without the mouse.
+7. **Command palette (`Ctrl+K`) & keyboard shortcuts [Done]** — Move tasks, start focus, jump to dates without the mouse.
 8. **Tags with colors [MVP]** — Simple categories (Work, Home, Health…) used for filtering and gradient accent colors.
-9. **End-of-day reflection [Later]** — One-line note + mood emoji per day; shown in the stats calendar.
+9. **End-of-day reflection [Done]** — One-line note + mood emoji per day; shown in the stats calendar.
 10. **Light / dark theme + "time-of-day" theme [MVP]** — Gradients shift from sunrise peach to night indigo automatically.
-11. **Achievements [Later]** — Playful badges: "7-day streak", "100 focus sessions", "Backlog zero".
-12. **PWA + offline-friendly [Later]** — Installable, works well as a desktop "app" window.
-13. **Subtasks / checklist inside a task [Later]**.
+11. **Achievements [Dropped]** — Playful badges: "7-day streak", "100 focus sessions", "Backlog zero".
+12. **PWA + offline-friendly [Done]** — Installable, works well as a desktop "app" window. Recent API reads are cached by the service worker, so the app opens offline with the last-seen data (writes need a connection).
+13. **Subtasks / checklist inside a task [Done]** — Templates carry a checklist too.
 14. **Export / import (JSON) [Later]** — Backup of your SQLite data.
 
 ---
@@ -216,8 +216,15 @@ FocusSessionTask
   FocusSessionId (FK), TaskItemId (FK)  -- composite PK
   CompletedInSession (bool)
 
-DayNote (later)
-  Date (date, PK), Mood (text), Reflection (text)
+Subtask
+  Id (int, PK)
+  TaskItemId (FK → TaskItem, cascade)
+  Title (text, ≤ 200), IsDone (bool), SortOrder (int)
+  -- TaskTemplate.Checklist (JSON array of titles) is copied into new tasks, unticked
+
+DayNote                               -- end-of-day reflection
+  Date (date, PK), Mood (enum: Rough | Meh | Okay | Good | Great, nullable), Reflection (text ≤ 500, nullable), UpdatedAt
+
 ```
 
 **Stats rule (definition to confirm, Q4):** A task counts as "planned" for day D if it had a `DayPlanEntry` for D that wasn't removed before the *planning cutoff* (default: added any time that day and not removed by hand before end of day). "Done" = Outcome `Completed`. Tasks added *and* finished the same day count as planned + done (alternative: track them as "bonus" separately).
@@ -246,6 +253,9 @@ As implemented. Every request carries `X-Local-Date: yyyy-MM-dd` so "today" foll
 | POST | `/api/focus-sessions/{id}/finish` | `{ status: completed \| endedEarly, actualSeconds }` |
 | GET | `/api/stats/summary?from=&to=&threshold=` | Per-day planned/done/focus minutes, totals, current & best streak |
 | GET | `/api/stats/insights` | Top templates, most-postponed tasks, best weekday, focus totals |
+| POST | `/api/tasks/{id}/subtasks` | Add a checklist item (returns the task) |
+| PATCH/DELETE | `/api/tasks/{id}/subtasks/{subtaskId}` | Rename / tick off, or remove a checklist item (returns the task). `PUT /api/tasks/{id}` can also replace the whole checklist |
+| PUT/DELETE | `/api/days/{date}/note` | End-of-day reflection `{ mood, reflection }`; an empty note deletes it. Also returned in `GET /api/days/{date}` and per day in the stats summary |
 
 ---
 
@@ -295,9 +305,9 @@ As implemented. Every request carries `X-Local-Date: yyyy-MM-dd` so "today" foll
 | 5 | **Stats** | Summary endpoint, progress ring, 7/30-day chart, heatmap, streaks, focus minutes. | ✅ |
 | 6 | **Daily rhythm** | Morning rollover ritual ✅, stale backlog badges ✅, template recurrence suggestions. | Partly (recurrence open) |
 | 7 | **Hardening** | Unit + integration tests ✅, automated e2e tests for drag flows, a11y audit, production build served by the API ✅. | Partly |
-| 8 | **Later** | Pomodoro, command palette, reflections, achievements, export/import, overplanning nudge, auth/multi-user. | Open |
+| 8 | **Later** | Command palette ✅, reflections ✅, checklists ✅, offline-friendly PWA ✅. Still open: Pomodoro, export/import, overplanning nudge, auth/multi-user. | Partly |
 
-PWA (manifest, icons, service worker) shipped with the MVP.
+PWA (manifest, icons, service worker) shipped with the MVP; offline reads, install button and update prompt came with milestone 8.
 
 ---
 

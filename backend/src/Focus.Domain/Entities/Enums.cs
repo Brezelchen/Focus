@@ -32,3 +32,13 @@ public enum FocusSessionStatus
     Completed = 1,
     EndedEarly = 2,
 }
+
+/// <summary>How a day felt, picked in the end-of-day reflection.</summary>
+public enum Mood
+{
+    Rough = 0,
+    Meh = 1,
+    Okay = 2,
+    Good = 3,
+    Great = 4,
+}
