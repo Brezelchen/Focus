@@ -251,7 +251,7 @@ As implemented. Every request carries `X-Local-Date: yyyy-MM-dd` so "today" foll
 | DELETE | `/api/tasks/{id}` | Delete |
 | GET/POST/PUT/DELETE | `/api/templates` | Manage templates (sorted by use) |
 | POST | `/api/templates/{id}/instantiate` | `{ date \| null, index? }`: create a fresh task from a template |
-| PUT | `/api/tasks/{id}/repeat` | `{ repeat: { frequency, interval, weekdays?, monthDay?, startDate? } \| null }`: make a task repeat (it becomes a recurring template) or stop it. Templates take `repeat` in their POST/PUT body too. Due copies are placed by `POST /api/days/rollover` |
+| PUT | `/api/tasks/{id}/repeat` | `{ repeat: { frequency, interval, weekdays?, monthDay?, startDate? } \| null }`: make a task repeat (it becomes a recurring template) or stop it. Templates: `PUT /api/templates/{id}/repeat` (same body); `repeat` in a template's POST/PUT body sets a rule, and leaving it out keeps the current one. Due copies are placed by `POST /api/days/rollover` |
 | GET/POST/PUT/DELETE | `/api/tags` | Tags |
 | POST | `/api/focus-sessions` | Start a session (taskIds, plannedMinutes) |
 | POST | `/api/focus-sessions/{id}/finish` | `{ status: completed \| endedEarly, actualSeconds }` |

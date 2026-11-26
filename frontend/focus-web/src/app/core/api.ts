@@ -85,6 +85,10 @@ export class Api {
   templates(): Observable<Template[]> {
     return this.http.get<Template[]>('/api/templates');
   }
+  /** Sets a template's repeat rule, or stops it with null. */
+  setTemplateRepeat(id: number, repeat: RecurrenceInput | null): Observable<Template> {
+    return this.http.put<Template>(`/api/templates/${id}/repeat`, { repeat });
+  }
   updateTemplate(id: number, input: TemplateInput): Observable<Template> {
     return this.http.put<Template>(`/api/templates/${id}`, input);
   }

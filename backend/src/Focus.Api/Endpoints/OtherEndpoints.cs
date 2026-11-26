@@ -22,6 +22,8 @@ public static class OtherEndpoints
             await s.DeleteAsync(id, ct);
             return Results.NoContent();
         });
+        g.MapPut("/{id:int}/repeat", (int id, SetRepeatRequest r, RecurrenceService s, CancellationToken ct) => s.SetTemplateRepeatAsync(id, r, ct))
+            .WithSummary("Set a template's repeat rule, or stop it with { repeat: null }");
         g.MapPost("/{id:int}/instantiate", (int id, InstantiateTemplateRequest r, TemplateService s, CancellationToken ct) => s.InstantiateAsync(id, r, ct));
         return api;
     }

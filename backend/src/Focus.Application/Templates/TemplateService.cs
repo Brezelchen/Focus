@@ -21,8 +21,8 @@ public sealed record SaveTemplateRequest(
 public sealed record InstantiateTemplateRequest(DateOnly? Date, int? Index = null);
 
 /// <remarks>
-/// <see cref="SaveTemplateRequest.Repeat"/> is part of the full replacement: null means the template doesn't repeat.
-/// <see cref="SaveTemplateRequest.Checklist"/> null keeps the checklist (older clients don't send it).
+/// In <see cref="SaveTemplateRequest"/>, a null <c>Checklist</c> or <c>Repeat</c> keeps what the template has
+/// (older clients don't send them). Stop a repeat with <see cref="RecurrenceService.SetTemplateRepeatAsync"/>.
 /// </remarks>
 public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService tags, TaskService tasks, RecurrenceService recurrence)
 {
@@ -108,6 +108,6 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
         template.Priority = request.Priority;
         template.TagId = await tags.EnsureExistsAsync(request.TagId, ct);
         if (request.Checklist is { } checklist) template.Checklist = Guard.Checklist(checklist);
-        RecurrenceService.Apply(template, request.Repeat, clock.Today);
+        if (request.Repeat is { } repeat) RecurrenceService.Apply(template, repeat, clock.Today);
     }
 }

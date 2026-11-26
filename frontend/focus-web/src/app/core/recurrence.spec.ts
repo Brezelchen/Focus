@@ -1,4 +1,4 @@
-import { describeRepeat, ordinal, sameRepeat, shortRepeat } from './recurrence';
+import { describeRepeat, lowerFirst, ordinal, sameRepeat, shortRepeat } from './recurrence';
 
 describe('recurrence', () => {
   it('writes ordinals', () => {
@@ -17,6 +17,17 @@ describe('recurrence', () => {
     expect(describeRepeat({ frequency: 'weekly', interval: 1, weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] })).toBe('Every weekday');
     expect(describeRepeat({ frequency: 'weekly', interval: 2, weekdays: ['monday'] })).toBe('Every 2 weeks on Monday');
     expect(shortRepeat({ frequency: 'weekly', interval: 1, weekdays: ['friday', 'monday'] })).toBe('Mon·Fri');
+  });
+
+  it('describes all seven days on a multi-week rule sensibly', () => {
+    const all = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+    expect(describeRepeat({ frequency: 'weekly', interval: 1, weekdays: [...all] })).toBe('Every day');
+    expect(describeRepeat({ frequency: 'weekly', interval: 2, weekdays: [...all] })).toBe('Every day, every 2 weeks');
+    expect(shortRepeat({ frequency: 'weekly', interval: 2, weekdays: [...all] })).toBe('2w · every day');
+  });
+
+  it('lowercases only the first letter', () => {
+    expect(lowerFirst('Every Mon, Wed & Fri')).toBe('every Mon, Wed & Fri');
   });
 
   it('describes monthly rules', () => {

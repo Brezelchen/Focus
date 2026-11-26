@@ -57,7 +57,9 @@ export function describeRepeat(r: Rule): string {
       const days = r.weekdays?.length ? r.weekdays : [];
       const many = days.length > 2;
       const list = days.length ? listDays(days, many ? SHORT : LONG) : 'week';
-      return n === 1 ? `Every ${list}` : `Every ${n} weeks on ${list === 'weekday' ? 'weekdays' : list}`;
+      if (n === 1) return `Every ${list}`;
+      if (list === 'day') return `Every day, every ${n} weeks`;
+      return `Every ${n} weeks on ${list === 'weekday' ? 'weekdays' : list}`;
     }
     case 'monthly': {
       const on = r.monthDay ? ` on ${monthDayText(r.monthDay)}` : '';
@@ -75,7 +77,7 @@ export function shortRepeat(r: Rule): string {
     case 'weekly': {
       const days = sortDays(r.weekdays ?? []);
       const label =
-        days.length === 7 ? 'daily' : days.length === 5 && WORKDAYS.every((d) => days.includes(d)) ? 'weekdays' : days.map((d) => SHORT[d]).join('·');
+        days.length === 7 ? 'every day' : days.length === 5 && WORKDAYS.every((d) => days.includes(d)) ? 'weekdays' : days.map((d) => SHORT[d]).join('·');
       return n === 1 ? label || 'weekly' : `${n}w · ${label}`;
     }
     case 'monthly': {
@@ -83,6 +85,11 @@ export function shortRepeat(r: Rule): string {
       return n === 1 ? day || 'monthly' : `${n}mo${day ? ' · ' + day : ''}`;
     }
   }
+}
+
+/** "Every Monday" → "every Monday": for use mid-sentence without lowercasing day names. */
+export function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
 /** Whether two rules repeat the same way (ignores the start date). */

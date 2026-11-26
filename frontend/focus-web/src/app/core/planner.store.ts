@@ -6,7 +6,7 @@ import { addDays, todayIso } from './dates';
 import { Day, DayNote, IsoDate, Mood, RolloverResult, Subtask, Tag, Task, TaskInput, Template, TemplateInput } from './models';
 import { ToastService } from './toast.service';
 import { parseQuickAdd } from './quick-add';
-import { describeRepeat, sameRepeat } from './recurrence';
+import { describeRepeat, lowerFirst, sameRepeat } from './recurrence';
 
 const RITUAL_KEY = 'focus.ritualShownOn';
 const FOCUS_KEY = 'focus.selection';
@@ -193,7 +193,7 @@ export class PlannerStore {
       if (updated?.repeat) {
         const moved = updated.plannedDate === this.today() && task.plannedDate !== this.today();
         this.toast.show(
-          `🔁 "${updated.title}" repeats ${describeRepeat(updated.repeat).toLowerCase()}${moved ? ', starting today' : ''}.`,
+          `🔁 "${updated.title}" repeats ${lowerFirst(describeRepeat(updated.repeat))}${moved ? ', starting today' : ''}.`,
           'success',
         );
       }
@@ -280,8 +280,11 @@ export class PlannerStore {
   }
 
   async updateTemplate(template: Template, input: TemplateInput): Promise<void> {
+    const { repeat, ...fields } = input;
+    if (!(await this.run(this.api.updateTemplate(template.id, fields)))) return;
+    if (repeat !== undefined && !sameRepeat(repeat, template.repeat)) await this.run(this.api.setTemplateRepeat(template.id, repeat));
     // A repeating template may put a task on today right away, so the day is refreshed too.
-    if (await this.run(this.api.updateTemplate(template.id, input))) await Promise.all([this.loadTemplates(), this.refresh()]);
+    await Promise.all([this.loadTemplates(), this.refresh()]);
   }
 
   async deleteTemplate(template: Template): Promise<void> {

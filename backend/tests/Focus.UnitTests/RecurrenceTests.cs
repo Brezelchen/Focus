@@ -244,6 +244,42 @@ public sealed class RecurringTaskTests : IDisposable
     }
 
     [Fact]
+    public async Task Saving_a_template_without_a_repeat_keeps_its_rule_and_the_repeat_endpoint_stops_it()
+    {
+        var template = await _app.Templates.CreateAsync(new SaveTemplateRequest("Inbox zero",
+            Repeat: new RecurrenceInput(RepeatFrequency.Weekly, Weekdays: [DayOfWeek.Monday])));
+
+        var renamed = await _app.Templates.UpdateAsync(template.Id, new SaveTemplateRequest("Inbox zero!"));
+        Assert.Equal(RepeatFrequency.Weekly, renamed.Repeat?.Frequency); // an old client didn't wipe it
+
+        var stopped = await _app.Recurrence.SetTemplateRepeatAsync(template.Id, new SetRepeatRequest(null));
+        Assert.Null(stopped.Repeat);
+    }
+
+    [Fact]
+    public async Task An_open_copy_still_on_a_past_day_is_moved_not_duplicated()
+    {
+        var task = await _app.Tasks.CreateAsync(new CreateTaskRequest("Gym", PlannedDate: Today));
+        var template = await _app.Templates.CreateFromTaskAsync(task.Id);
+
+        _app.Clock.NextDay(); // no rollover yet: yesterday's open copy is still on yesterday
+        await _app.Recurrence.SetTemplateRepeatAsync(template.Id, new SetRepeatRequest(new RecurrenceInput(RepeatFrequency.Daily)));
+
+        Assert.Equal(task.Id, Assert.Single(await TodayTasks()).Id);
+        var yesterday = await _app.Days.GetDayAsync(Today.AddDays(-1));
+        Assert.Equal(1, yesterday.Planned);
+        Assert.Equal(0, yesterday.Done); // recorded as planned, not done
+    }
+
+    [Fact]
+    public async Task Unknown_weekdays_are_rejected()
+    {
+        var task = await _app.Tasks.CreateAsync(new CreateTaskRequest("Call mom"));
+        await Assert.ThrowsAsync<ValidationException>(() => _app.Recurrence.SetTaskRepeatAsync(task.Id,
+            new SetRepeatRequest(new RecurrenceInput(RepeatFrequency.Weekly, Weekdays: [(DayOfWeek)9]))));
+    }
+
+    [Fact]
     public async Task Weekly_without_weekdays_uses_the_start_day_and_invalid_rules_are_rejected()
     {
         var task = await _app.Tasks.CreateAsync(new CreateTaskRequest("Call mom", PlannedDate: Today));

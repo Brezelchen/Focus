@@ -1,5 +1,6 @@
 using Focus.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Focus.Application.Abstractions;
 
@@ -13,6 +14,8 @@ public interface IFocusDbContext
     DbSet<FocusSessionTask> FocusSessionTasks { get; }
     DbSet<Subtask> Subtasks { get; }
     DbSet<DayNote> DayNotes { get; }
+
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

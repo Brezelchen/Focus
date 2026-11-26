@@ -10,7 +10,7 @@ import {
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { addDays, formatMinutes, greeting, longDate, relativeDayName } from '../../core/dates';
-import { describeRepeat } from '../../core/recurrence';
+import { describeRepeat, lowerFirst } from '../../core/recurrence';
 import { Subtask, Task, Template } from '../../core/models';
 import { PetService } from '../../core/pet.service';
 import { PlannerStore } from '../../core/planner.store';
@@ -247,7 +247,7 @@ export class TodayPage {
   }
 
   protected repeatText(t: Template): string {
-    return t.repeat ? describeRepeat(t.repeat).toLowerCase() : '';
+    return t.repeat ? lowerFirst(describeRepeat(t.repeat)) : '';
   }
 
   protected value(e: Event): string {

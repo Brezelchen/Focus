@@ -53,6 +53,16 @@ public sealed class RecurrenceService(IFocusDbContext db, IClock clock, TaskServ
         return await tasks.GetAsync(taskId, ct);
     }
 
+    /// <summary>Sets or (with null) stops a template's repeat rule.</summary>
+    public async Task<TemplateDto> SetTemplateRepeatAsync(int templateId, SetRepeatRequest request, CancellationToken ct = default)
+    {
+        var template = await db.Templates.FindAsync([templateId], ct) ?? throw new NotFoundException("Template", templateId);
+        Apply(template, request.Repeat, clock.Today);
+        await db.SaveChangesAsync(ct);
+        if (template.Repeats) await RunTodayAsync(template, ct);
+        return await db.Templates.AsNoTracking().Where(t => t.Id == templateId).Select(Projections.Template).FirstAsync(ct);
+    }
+
     /// <summary>
     /// Validates and stores a repeat rule on a template (null clears it). Does not save.
     /// Changing the rule lets it run again today.
@@ -75,6 +85,7 @@ public sealed class RecurrenceService(IFocusDbContext db, IClock clock, TaskServ
         switch (input.Frequency)
         {
             case RepeatFrequency.Weekly:
+                if (input.Weekdays?.Any(d => !Enum.IsDefined(d)) == true) throw new ValidationException("Unknown weekday.");
                 weekdays = Recurrence.ToMask(input.Weekdays is { Count: > 0 } days ? days : [start.DayOfWeek]);
                 break;
             case RepeatFrequency.Monthly:
@@ -121,7 +132,16 @@ public sealed class RecurrenceService(IFocusDbContext db, IClock clock, TaskServ
     {
         var today = clock.Today;
         if (template.RepeatLastRun == today) return null;
-        template.RepeatLastRun = today;
+
+        // Claim today's run in the database, so two overlapping requests (e.g. two tabs at midnight)
+        // can't both place a copy. Only the request whose UPDATE changed the row continues.
+        var claimed = await db.Templates
+            .Where(t => t.Id == template.Id && (t.RepeatLastRun == null || t.RepeatLastRun < today))
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.RepeatLastRun, today), ct);
+        var entry = db.Entry(template).Property(t => t.RepeatLastRun);
+        entry.CurrentValue = today;
+        entry.OriginalValue = today; // already stored; keeps SaveChanges from writing it again
+        if (claimed == 0) return null;
 
         int? placed = null;
         if (template.OccursOn(today))
@@ -135,8 +155,10 @@ public sealed class RecurrenceService(IFocusDbContext db, IClock clock, TaskServ
 
             if (!alreadyPlanned)
             {
+                // An open copy in the backlog, or still on a past day (rollover hasn't run yet), comes back
+                // to today rather than getting a duplicate. Moving it off the past day records it as not completed.
                 var waiting = copies
-                    .Where(c => c.Status == TaskItemStatus.Open && c.PlannedDate == null)
+                    .Where(c => c.Status == TaskItemStatus.Open && (c.PlannedDate == null || c.PlannedDate < today))
                     .OrderByDescending(c => c.UpdatedAt)
                     .FirstOrDefault();
 

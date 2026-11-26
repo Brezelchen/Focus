@@ -110,6 +110,7 @@ interface ChecklistRow {
                 max="365"
                 [value]="repeatInterval()"
                 (input)="setInterval($event)"
+                (change)="commitInterval($event)"
                 aria-label="Repeat interval"
               />
               {{ unit() }}
@@ -324,9 +325,18 @@ export class TaskEditor {
     return input;
   }
 
+  /** While typing: take the number if it's valid, so the summary updates live. */
   protected setInterval(e: Event): void {
     const n = Math.round(Number((e.target as HTMLInputElement).value));
     if (n >= 1 && n <= 365) this.repeatInterval.set(n);
+  }
+
+  /** On leaving the field: clamp to 1–365 (empty keeps the last value) and show what will be saved. */
+  protected commitInterval(e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const n = Math.round(Number(input.value));
+    if (input.value.trim() && Number.isFinite(n)) this.repeatInterval.set(Math.min(365, Math.max(1, n)));
+    input.value = String(this.repeatInterval());
   }
 
   protected toggleDay(day: Weekday): void {
