@@ -6,6 +6,7 @@ import { addDays, todayIso } from './dates';
 import { Day, DayNote, IsoDate, Mood, RolloverResult, Subtask, Tag, Task, TaskInput, Template, TemplateInput } from './models';
 import { ToastService } from './toast.service';
 import { parseQuickAdd } from './quick-add';
+import { describeRepeat, sameRepeat } from './recurrence';
 
 const RITUAL_KEY = 'focus.ritualShownOn';
 const FOCUS_KEY = 'focus.selection';
@@ -183,7 +184,22 @@ export class PlannerStore {
   }
 
   async update(task: Task, input: TaskInput): Promise<void> {
-    if (await this.run(this.api.updateTask(task.id, input))) await this.refresh();
+    const { repeat, ...fields } = input;
+    if (!(await this.run(this.api.updateTask(task.id, fields)))) return;
+
+    // The repeat rule lives on the task's series (a template), so it's saved separately and only when changed.
+    if (repeat !== undefined && !sameRepeat(repeat, task.repeat)) {
+      const updated = await this.run(this.api.setRepeat(task.id, repeat));
+      if (updated?.repeat) {
+        const moved = updated.plannedDate === this.today() && task.plannedDate !== this.today();
+        this.toast.show(
+          `🔁 "${updated.title}" repeats ${describeRepeat(updated.repeat).toLowerCase()}${moved ? ', starting today' : ''}.`,
+          'success',
+        );
+      }
+      await this.loadTemplates();
+    }
+    await this.refresh();
   }
 
   async remove(task: Task): Promise<void> {
@@ -264,7 +280,8 @@ export class PlannerStore {
   }
 
   async updateTemplate(template: Template, input: TemplateInput): Promise<void> {
-    if (await this.run(this.api.updateTemplate(template.id, input))) await this.loadTemplates();
+    // A repeating template may put a task on today right away, so the day is refreshed too.
+    if (await this.run(this.api.updateTemplate(template.id, input))) await Promise.all([this.loadTemplates(), this.refresh()]);
   }
 
   async deleteTemplate(template: Template): Promise<void> {

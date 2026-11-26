@@ -9,6 +9,7 @@ import {
   FocusSessionStatus,
   IsoDate,
   Mood,
+  RecurrenceInput,
   RolloverResult,
   StatsInsights,
   StatsSummary,
@@ -62,6 +63,10 @@ export class Api {
   }
   deleteTask(id: number): Observable<void> {
     return this.http.delete<void>(`/api/tasks/${id}`);
+  }
+  /** Makes a task repeat (it becomes a recurring template), or stops it with null. */
+  setRepeat(taskId: number, repeat: RecurrenceInput | null): Observable<Task> {
+    return this.http.put<Task>(`/api/tasks/${taskId}/repeat`, { repeat });
   }
   addSubtask(taskId: number, title: string): Observable<Task> {
     return this.http.post<Task>(`/api/tasks/${taskId}/subtasks`, { title });

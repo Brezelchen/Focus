@@ -43,7 +43,7 @@ Design principles:
 - Any task can be "⭐ Save as template".
 - Template shelf shows templates as colorful chips, sorted by most used.
 - Click or drag a chip → creates a **new task instance** for today (templates are never consumed).
-- Optional recurrence on a template (e.g. every Mon/Wed/Fri) — auto-suggests it on those days rather than forcing it in (see 3.x).
+- Optional recurrence on a template (every N days, weekly on chosen weekdays, monthly on a day). On those days a copy is put on Today automatically (decided 2026-11-26, replacing "suggest only"). At most one open copy per series: an unfinished copy waiting in the backlog is moved onto Today instead of creating a duplicate. Missed days are not backfilled.
 - Usage count + last-used tracked so the most useful ones float to the top.
 
 ### 2.4 Focus Mode
@@ -189,7 +189,10 @@ TaskTemplate
   Id (int, PK)
   Title, Notes, EstimateMinutes, Priority, TagId
   Icon (text, emoji)
-  RecurrenceRule (text, nullable)     -- e.g. "WEEKLY;MO,WE,FR"
+  Checklist (JSON array of text)
+  RepeatFrequency (enum: Daily | Weekly | Monthly, nullable = doesn't repeat)
+  RepeatInterval (int, every N days/weeks/months), RepeatWeekdays (int bitmask), RepeatMonthDay (int, 31 = last day)
+  RepeatStart (date, "every N" counts from here), RepeatLastRun (date, so each day is processed once)
   UseCount (int)
   LastUsedAt (datetime, nullable)
   IsArchived (bool)
@@ -248,6 +251,7 @@ As implemented. Every request carries `X-Local-Date: yyyy-MM-dd` so "today" foll
 | DELETE | `/api/tasks/{id}` | Delete |
 | GET/POST/PUT/DELETE | `/api/templates` | Manage templates (sorted by use) |
 | POST | `/api/templates/{id}/instantiate` | `{ date \| null, index? }`: create a fresh task from a template |
+| PUT | `/api/tasks/{id}/repeat` | `{ repeat: { frequency, interval, weekdays?, monthDay?, startDate? } \| null }`: make a task repeat (it becomes a recurring template) or stop it. Templates take `repeat` in their POST/PUT body too. Due copies are placed by `POST /api/days/rollover` |
 | GET/POST/PUT/DELETE | `/api/tags` | Tags |
 | POST | `/api/focus-sessions` | Start a session (taskIds, plannedMinutes) |
 | POST | `/api/focus-sessions/{id}/finish` | `{ status: completed \| endedEarly, actualSeconds }` |
@@ -303,7 +307,7 @@ As implemented. Every request carries `X-Local-Date: yyyy-MM-dd` so "today" foll
 | 3 | **Visual polish pass 1** | Design tokens, gradients, glass cards, drag animations, confetti, theming (light/dark/time-of-day). | ✅ |
 | 4 | **Focus Mode** | Full-screen route, art layers + CSS animations, focus tray, timer, session persistence, summary card, ambient sounds. | ✅ |
 | 5 | **Stats** | Summary endpoint, progress ring, 7/30-day chart, heatmap, streaks, focus minutes. | ✅ |
-| 6 | **Daily rhythm** | Morning rollover ritual ✅, stale backlog badges ✅, template recurrence suggestions. | Partly (recurrence open) |
+| 6 | **Daily rhythm** | Morning rollover ritual ✅, stale backlog badges ✅, repeating tasks placed on Today automatically ✅. | ✅ |
 | 7 | **Hardening** | Unit + integration tests ✅, automated e2e tests for drag flows, a11y audit, production build served by the API ✅. | Partly |
 | 8 | **Later** | Command palette ✅, reflections ✅, checklists ✅, offline-friendly PWA ✅. Still open: Pomodoro, export/import, overplanning nudge, auth/multi-user. | Partly |
 

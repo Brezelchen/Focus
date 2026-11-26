@@ -14,14 +14,19 @@ public sealed record SaveTemplateRequest(
     int? EstimateMinutes = null,
     Priority Priority = Priority.Normal,
     int? TagId = null,
-    IReadOnlyList<string>? Checklist = null);
+    IReadOnlyList<string>? Checklist = null,
+    RecurrenceInput? Repeat = null);
 
 /// <summary>Create a task from a template, on <see cref="Date"/> (null = backlog) at <see cref="Index"/> (null = end).</summary>
 public sealed record InstantiateTemplateRequest(DateOnly? Date, int? Index = null);
 
-public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService tags, TaskService tasks)
+/// <remarks>
+/// <see cref="SaveTemplateRequest.Repeat"/> is part of the full replacement: null means the template doesn't repeat.
+/// <see cref="SaveTemplateRequest.Checklist"/> null keeps the checklist (older clients don't send it).
+/// </remarks>
+public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService tags, TaskService tasks, RecurrenceService recurrence)
 {
-    private const string DefaultIcon = "⭐"; // star
+    private const string DefaultIcon = TemplateFactory.DefaultIcon;
 
     /// <summary>Most useful first: by use count, then most recently used.</summary>
     public async Task<IReadOnlyList<TemplateDto>> GetAllAsync(CancellationToken ct = default) =>
@@ -40,6 +45,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
         await ApplyAsync(template, request, ct);
         db.Templates.Add(template);
         await db.SaveChangesAsync(ct);
+        if (template.Repeats) await recurrence.RunTodayAsync(template, ct);
         return await GetAsync(template.Id, ct);
     }
 
@@ -50,20 +56,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
             ?? throw new NotFoundException("Task", taskId);
         if (task.TemplateId is { } existingId) return await GetAsync(existingId, ct);
 
-        var now = clock.UtcNow;
-        var template = new TaskTemplate
-        {
-            Title = task.Title,
-            Notes = task.Notes,
-            EstimateMinutes = task.EstimateMinutes,
-            Priority = task.Priority,
-            TagId = task.TagId,
-            Checklist = task.Subtasks.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s => s.Title).ToList(),
-            Icon = DefaultIcon,
-            CreatedAt = now,
-            UseCount = 1,
-            LastUsedAt = now,
-        };
+        var template = TemplateFactory.FromTask(task, clock.UtcNow);
         db.Templates.Add(template);
         task.Template = template;
         await db.SaveChangesAsync(ct);
@@ -75,6 +68,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
         var template = await db.Templates.FindAsync([id], ct) ?? throw new NotFoundException("Template", id);
         await ApplyAsync(template, request, ct);
         await db.SaveChangesAsync(ct);
+        if (template.Repeats) await recurrence.RunTodayAsync(template, ct);
         return await GetAsync(id, ct);
     }
 
@@ -89,16 +83,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
     {
         var template = await db.Templates.FindAsync([id], ct) ?? throw new NotFoundException("Template", id);
 
-        var task = new TaskItem
-        {
-            Title = template.Title,
-            Notes = template.Notes,
-            EstimateMinutes = template.EstimateMinutes,
-            Priority = template.Priority,
-            TagId = template.TagId,
-            TemplateId = template.Id,
-            Subtasks = TaskService.NewSubtasks(template.Checklist),
-        };
+        var task = TemplateFactory.NewTask(template);
         template.UseCount++;
         template.LastUsedAt = clock.UtcNow;
         await tasks.AddAsync(task, request.Date, ct);
@@ -122,7 +107,7 @@ public sealed class TemplateService(IFocusDbContext db, IClock clock, TagService
         template.EstimateMinutes = Guard.Estimate(request.EstimateMinutes);
         template.Priority = request.Priority;
         template.TagId = await tags.EnsureExistsAsync(request.TagId, ct);
-        // Null keeps the checklist (older clients don't send it).
         if (request.Checklist is { } checklist) template.Checklist = Guard.Checklist(checklist);
+        RecurrenceService.Apply(template, request.Repeat, clock.Today);
     }
 }

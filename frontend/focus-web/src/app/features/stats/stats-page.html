@@ -34,7 +34,7 @@
     </div>
 
     <div class="tile glass enter-fade-up" style="animation-delay: 120ms">
-      <span class="tile-icon flame" aria-hidden="true">🔥</span>
+      <span class="tile-icon" aria-hidden="true">🔥</span>
       <span class="tile-value">{{ summary()?.currentStreak ?? 0 }}<small>{{ summary()?.currentStreak === 1 ? 'day' : 'days' }}</small></span>
       <span class="tile-label">Streak</span>
       <span class="tile-sub muted">best {{ summary()?.bestStreak ?? 0 }} · days with ≥ {{ ((summary()?.threshold ?? 0.8) * 100).toFixed(0) }}% done</span>

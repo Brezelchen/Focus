@@ -22,7 +22,8 @@ public sealed record TaskDto(
     DateTime CreatedAt,
     DateTime? CompletedAt,
     int PostponedCount,
-    IReadOnlyList<SubtaskDto> Subtasks);
+    IReadOnlyList<SubtaskDto> Subtasks,
+    RecurrenceDto? Repeat);
 
 public sealed record SubtaskDto(int Id, string Title, bool IsDone);
 
@@ -36,4 +37,15 @@ public sealed record TemplateDto(
     TagDto? Tag,
     IReadOnlyList<string> Checklist,
     int UseCount,
-    DateTime? LastUsedAt);
+    DateTime? LastUsedAt,
+    RecurrenceDto? Repeat);
+
+/// <param name="Weekdays">Weekly: the chosen days, Monday first.</param>
+/// <param name="MonthDay">Monthly: day of the month (31 = last day in shorter months).</param>
+/// <param name="StartDate">"Every N" counts from this day.</param>
+public sealed record RecurrenceDto(RepeatFrequency Frequency, int Interval, IReadOnlyList<DayOfWeek> Weekdays, int? MonthDay, DateOnly StartDate)
+{
+    /// <summary>Builds the DTO from a template's columns; null when it doesn't repeat. Runs client-side in projections.</summary>
+    public static RecurrenceDto? From(RepeatFrequency? frequency, int interval, int weekdays, int? monthDay, DateOnly? start) =>
+        frequency is { } f && start is { } s ? new RecurrenceDto(f, interval, Recurrence.FromMask(weekdays), monthDay, s) : null;
+}

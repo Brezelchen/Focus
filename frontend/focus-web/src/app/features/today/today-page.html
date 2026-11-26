@@ -45,7 +45,8 @@
           class="quick-input"
           [value]="quickText()"
           (input)="quickText.set(value($event))"
-          (keydown.enter)="quickAdd($event, isShift($event) ? 'backlog' : 'day')"
+          (keydown.enter)="quickAdd($event, 'day')"
+          (keydown.shift.enter)="quickAdd($event, 'backlog')"
           [placeholder]="'Add to ' + dayTitle().toLowerCase() + '…  e.g. Write report #work ~45m !high @fri'"
           aria-label="Quick add a task"
           maxlength="300"
@@ -77,13 +78,16 @@
             [cdkDragStartDelay]="{ touch: 250, mouse: 0 }"
             (click)="store.useTemplate(t, 'day')"
             (contextmenu)="editTemplate(t, $event)"
-            [title]="'Add “' + t.title + '” · used ' + t.useCount + '× · right-click to edit'"
+            [title]="'Add “' + t.title + '” · used ' + t.useCount + '×' + (t.repeat ? ' · repeats: ' + repeatText(t) : '') + ' · right-click to edit'"
             role="button"
             tabindex="0"
             (keydown.enter)="store.useTemplate(t, 'day')"
           >
             <span class="t-icon">{{ t.icon }}</span>
             <span class="t-title">{{ t.title }}</span>
+            @if (t.repeat) {
+              <span class="t-repeat" [title]="'Repeats: ' + repeatText(t)">🔁</span>
+            }
             @if (t.useCount > 1) {
               <span class="t-count">{{ t.useCount }}</span>
             }

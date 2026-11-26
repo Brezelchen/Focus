@@ -35,6 +35,8 @@ public static class TaskEndpoints
         tasks.MapDelete("/{id:int}/subtasks/{subtaskId:int}", (int id, int subtaskId, TaskService s, CancellationToken ct) =>
             s.DeleteSubtaskAsync(id, subtaskId, ct))
             .WithSummary("Remove a checklist item; returns the updated task");
+        tasks.MapPut("/{id:int}/repeat", (int id, SetRepeatRequest r, RecurrenceService s, CancellationToken ct) => s.SetTaskRepeatAsync(id, r, ct))
+            .WithSummary("Make a task repeat (it becomes a recurring template), or stop it with { repeat: null }");
         tasks.MapPost("/{id:int}/save-as-template", (int id, TemplateService s, CancellationToken ct) => s.CreateFromTaskAsync(id, ct));
         tasks.MapDelete("/{id:int}", async (int id, TaskService s, CancellationToken ct) =>
         {

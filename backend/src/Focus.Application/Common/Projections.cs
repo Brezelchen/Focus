@@ -21,7 +21,10 @@ public static class Projections
         t.CreatedAt,
         t.CompletedAt,
         t.PlanEntries.Count(e => e.Outcome == PlanOutcome.NotCompleted),
-        t.Subtasks.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s => new SubtaskDto(s.Id, s.Title, s.IsDone)).ToList());
+        t.Subtasks.OrderBy(s => s.SortOrder).ThenBy(s => s.Id).Select(s => new SubtaskDto(s.Id, s.Title, s.IsDone)).ToList(),
+        t.Template == null
+            ? null
+            : RecurrenceDto.From(t.Template.RepeatFrequency, t.Template.RepeatInterval, t.Template.RepeatWeekdays, t.Template.RepeatMonthDay, t.Template.RepeatStart));
 
     public static readonly Expression<Func<TaskTemplate, TemplateDto>> Template = t => new TemplateDto(
         t.Id,
@@ -33,5 +36,6 @@ public static class Projections
         t.Tag == null ? null : new TagDto(t.Tag.Id, t.Tag.Name, t.Tag.Color),
         t.Checklist,
         t.UseCount,
-        t.LastUsedAt);
+        t.LastUsedAt,
+        RecurrenceDto.From(t.RepeatFrequency, t.RepeatInterval, t.RepeatWeekdays, t.RepeatMonthDay, t.RepeatStart));
 }

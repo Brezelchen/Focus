@@ -13,6 +13,7 @@ See [PLAN.md](PLAN.md) for the full plan, decisions and roadmap.
 - **Today**: your list for the day, a progress ring, a dog mascot that reacts to your progress, and confetti when you finish things.
 - **Backlog**: everything for later. Drag tasks between the backlog and the day, and reorder by dragging.
 - **Templates**: save any task as a template (⋯ → *Save as template*). Click or drag a template to create a fresh copy.
+- **Repeating tasks**: in a task's editor pick *Repeat*: daily or every N days, weekly on chosen weekdays (e.g. every Monday, every other Friday), or monthly on a day (the 1st, the 15th, the last day). On those days the task lands on **Today** by itself when you open the app. An unfinished copy goes back to the backlog as usual and comes back on the next repeat day instead of piling up. Repeating tasks show 🔁 and live on as templates on the shelf; set *Repeat → Never* (or delete the template) to stop them.
 - **Due dates**: set in the editor or with `@today`, `@tomorrow`, `@fri`, `@nextweek`, `@24.12` in quick add. Overdue tasks get a red badge, and the backlog has a "Due soon" filter.
 - **Quick add**: `Write report #work ~45m !high` sets the tag, estimate and priority. Press <kbd>Enter</kbd> for the day or <kbd>Shift</kbd>+<kbd>Enter</kbd> for the backlog.
 - **Focus Mode**: an original animated lofi scene (a girl with brown hair and her little brown dog) that follows the time of day.
@@ -67,7 +68,7 @@ The service worker is only active in production builds. The database location ca
 ## Tests
 
 ```bash
-cd backend && dotnet test             # unit tests (planning history, stats, quick add, checklists, reflections) + API integration tests
+cd backend && dotnet test             # unit tests (planning history, stats, quick add, checklists, reflections, repeating tasks) + API integration tests
 cd frontend/focus-web && npx ng test  # Vitest unit tests
 ```
 

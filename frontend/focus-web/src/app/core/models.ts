@@ -31,6 +31,33 @@ export interface Task {
   postponedCount: number;
   /** Checklist, in order. */
   subtasks: Subtask[];
+  /** Repeat rule of the task's series (its template), if it repeats. */
+  repeat: Recurrence | null;
+}
+
+export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export const WEEKDAYS: Weekday[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+export type RepeatFrequency = 'daily' | 'weekly' | 'monthly';
+
+/** A repeat rule: every `interval` days / weeks (on `weekdays`) / months (on `monthDay`), counted from `startDate`. */
+export interface Recurrence {
+  frequency: RepeatFrequency;
+  interval: number;
+  /** Weekly: chosen days, Monday first. */
+  weekdays: Weekday[];
+  /** Monthly: day of the month; 31 = last day in shorter months. */
+  monthDay: number | null;
+  startDate: IsoDate;
+}
+
+/** A rule as sent to the server. Missing pieces get sensible defaults (e.g. start = the task's day). */
+export interface RecurrenceInput {
+  frequency: RepeatFrequency;
+  interval: number;
+  weekdays?: Weekday[];
+  monthDay?: number | null;
+  startDate?: IsoDate | null;
 }
 
 export interface Subtask {
@@ -58,6 +85,7 @@ export interface Template {
   checklist: string[];
   useCount: number;
   lastUsedAt: string | null;
+  repeat: Recurrence | null;
 }
 
 export interface Day {
@@ -112,6 +140,8 @@ export interface TaskInput {
   dueDate: IsoDate | null;
   /** Replaces the checklist; omit to keep it unchanged. */
   subtasks?: SubtaskInput[];
+  /** Repeat rule (null = doesn't repeat); omit to leave it as it is. */
+  repeat?: RecurrenceInput | null;
 }
 
 export interface TemplateInput extends TaskInput {

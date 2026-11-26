@@ -15,6 +15,7 @@ public static class DependencyInjection
         .AddScoped<DayService>()
         .AddScoped<TagService>()
         .AddScoped<TemplateService>()
+        .AddScoped<RecurrenceService>()
         .AddScoped<FocusSessionService>()
         .AddScoped<StatsService>();
 }

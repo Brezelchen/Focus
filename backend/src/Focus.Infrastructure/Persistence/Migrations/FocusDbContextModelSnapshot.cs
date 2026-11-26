@@ -269,6 +269,25 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RepeatFrequency")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepeatInterval")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("RepeatLastRun")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RepeatMonthDay")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("RepeatStart")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepeatWeekdays")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("TagId")
                         .HasColumnType("INTEGER");
 

@@ -91,6 +91,28 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
         Assert.Equal(HttpStatusCode.NoContent, cleared.StatusCode);
     }
 
+    private sealed record RepeatDto(string Frequency, int Interval, List<string> Weekdays, int? MonthDay, DateOnly StartDate);
+    private sealed record RepeatingTask(int Id, int? TemplateId, RepeatDto? Repeat);
+
+    [Fact]
+    public async Task Repeat_endpoint_sets_and_clears_a_rule()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var client = Client(today.ToString("yyyy-MM-dd"));
+        var task = (await (await client.PostAsJsonAsync("/api/tasks", new { title = "Plan week" })).Content.ReadFromJsonAsync<RepeatingTask>(Json))!;
+
+        var set = await client.PutAsJsonAsync($"/api/tasks/{task.Id}/repeat",
+            new { repeat = new { frequency = "weekly", interval = 1, weekdays = new[] { "monday", "friday" } } });
+        set.EnsureSuccessStatusCode();
+        var repeating = (await set.Content.ReadFromJsonAsync<RepeatingTask>(Json))!;
+        Assert.NotNull(repeating.TemplateId);
+        Assert.Equal("weekly", repeating.Repeat?.Frequency);
+        Assert.Equal(["monday", "friday"], repeating.Repeat?.Weekdays);
+
+        var cleared = await client.PutAsJsonAsync($"/api/tasks/{task.Id}/repeat", new { repeat = (object?)null });
+        Assert.Null((await cleared.Content.ReadFromJsonAsync<RepeatingTask>(Json))!.Repeat);
+    }
+
     [Fact]
     public async Task Errors_are_problem_details()
     {

@@ -35,8 +35,9 @@ public sealed class TestApp : IDisposable
 
         Tags = new TagService(Db);
         Tasks = new TaskService(Db, Clock, Tags);
-        Days = new DayService(Db, Clock);
-        Templates = new TemplateService(Db, Clock, Tags, Tasks);
+        Recurrence = new RecurrenceService(Db, Clock, Tasks);
+        Days = new DayService(Db, Clock, Recurrence);
+        Templates = new TemplateService(Db, Clock, Tags, Tasks, Recurrence);
         Stats = new StatsService(Db, Clock);
     }
 
@@ -46,6 +47,7 @@ public sealed class TestApp : IDisposable
     public TaskService Tasks { get; }
     public DayService Days { get; }
     public TemplateService Templates { get; }
+    public RecurrenceService Recurrence { get; }
     public StatsService Stats { get; }
 
     public void Dispose()

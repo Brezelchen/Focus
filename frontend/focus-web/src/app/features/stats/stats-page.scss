@@ -95,16 +95,6 @@
   font-size: 22px;
 }
 
-.flame {
-  display: inline-block;
-  animation: flicker 2.2s ease-in-out infinite;
-  transform-origin: 50% 90%;
-}
-
-@keyframes flicker {
-  25% { transform: rotate(-6deg) scale(1.05); }
-  60% { transform: rotate(4deg) scale(0.97); }
-}
 
 .tile-value {
   font: 800 34px/1.1 var(--font-display);

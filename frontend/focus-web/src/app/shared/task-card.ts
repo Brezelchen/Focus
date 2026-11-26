@@ -1,6 +1,7 @@
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
 import { DueState, dayDiff, dueLabel, formatMinutes, todayIso } from '../core/dates';
+import { describeRepeat, shortRepeat } from '../core/recurrence';
 import { Subtask, Task } from '../core/models';
 
 export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 'toBacklog' | 'reopen';
@@ -57,7 +58,9 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
         @if (task().estimateMinutes) {
           <span class="chip" data-color="sky">⏱ {{ estimate() }}</span>
         }
-        @if (task().templateId) {
+        @if (repeat(); as r) {
+          <span class="chip" data-color="mint" [title]="'Repeats: ' + r.long">🔁 {{ r.short }}</span>
+        } @else if (task().templateId) {
           <span class="chip" data-color="honey" title="Created from a template">⭐</span>
         }
         @if (task().postponedCount >= 2 && !isDone()) {
@@ -99,7 +102,7 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'focus' | 'toToday' | 
         @if (isDone()) {
           <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('reopen')">↩️ Mark as not done</button>
         } @else {
-          <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('edit')">✏️ Edit{{ task().subtasks.length ? '' : ' / add checklist' }}</button>
+          <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('edit')">✏️ Edit</button>
           @if (location() !== 'focus') {
             <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('focus')">🎧 Add to focus</button>
           }
@@ -136,6 +139,10 @@ export class TaskCard {
   /** Steps are shown on the day's open, full-size cards; collapsed in the backlog and once done. */
   protected readonly expanded = linkedSignal(() => !this.compact() && !this.isDone() && this.location() !== 'backlog');
   protected readonly estimate = computed(() => formatMinutes(this.task().estimateMinutes));
+  protected readonly repeat = computed(() => {
+    const r = this.task().repeat;
+    return r ? { short: shortRepeat(r), long: describeRepeat(r) } : null;
+  });
   /** Hidden once the task is done: the deadline no longer matters. */
   protected readonly due = computed(() => {
     const t = this.task();

@@ -1,6 +1,7 @@
 using Focus.Application.Abstractions;
 using Focus.Application.Common;
 using Focus.Application.Tasks;
+using Focus.Application.Templates;
 using Focus.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +25,7 @@ public sealed record DaySummary(DateOnly Date, int Planned, int Done);
 /// <param name="ReturnedTasks">Unfinished tasks this rollover moved back to the backlog.</param>
 public sealed record RolloverResult(DaySummary? PreviousDay, IReadOnlyList<TaskDto> ReturnedTasks);
 
-public sealed class DayService(IFocusDbContext db, IClock clock)
+public sealed class DayService(IFocusDbContext db, IClock clock, RecurrenceService recurrence)
 {
     public async Task<DayDto> GetDayAsync(DateOnly date, CancellationToken ct = default)
     {
@@ -85,7 +86,8 @@ public sealed class DayService(IFocusDbContext db, IClock clock)
 
     /// <summary>
     /// Sends every unfinished task from past days back to the backlog (top of the backlog, oldest day first),
-    /// recording them as "planned but not completed". Idempotent: calling it again the same day returns no tasks.
+    /// recording them as "planned but not completed", then puts today's recurring tasks on today.
+    /// Idempotent: calling it again the same day returns no tasks.
     /// </summary>
     public async Task<RolloverResult> RolloverAsync(CancellationToken ct = default)
     {
@@ -117,6 +119,9 @@ public sealed class DayService(IFocusDbContext db, IClock clock)
             await db.SaveChangesAsync(ct);
         }
 
+        // Recurring tasks due today land on today (an unfinished copy from the backlog comes back instead of a duplicate).
+        await recurrence.RunAllForTodayAsync(ct);
+
         var previousDate = await db.DayPlanEntries
             .Where(e => e.Date < today)
             .OrderByDescending(e => e.Date)
@@ -131,7 +136,7 @@ public sealed class DayService(IFocusDbContext db, IClock clock)
         }
 
         var ids = leftovers.Select(t => t.Id).ToList();
-        var returned = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.Id))
+        var returned = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.Id) && t.PlannedDate == null)
             .OrderBy(t => t.SortOrder).Select(Projections.Task).ToListAsync(ct);
 
         return new RolloverResult(previous, returned);

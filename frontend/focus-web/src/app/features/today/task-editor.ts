@@ -1,10 +1,11 @@
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { addDays, formatMinutes, parseIsoDate, todayIso } from '../../core/dates';
-import { Priority, Task, TemplateInput, Template } from '../../core/models';
+import { Priority, RecurrenceInput, RepeatFrequency, Task, TemplateInput, Template, WEEKDAYS, Weekday } from '../../core/models';
 import { PlannerStore } from '../../core/planner.store';
 import { parseQuickAdd } from '../../core/quick-add';
+import { describeRepeat, ordinal, sameRepeat } from '../../core/recurrence';
 import { ToastService } from '../../core/toast.service';
 
 export interface TaskEditorData {
@@ -87,6 +88,54 @@ interface ChecklistRow {
           (keydown.enter)="$event.preventDefault(); addRow()"
           aria-label="Add a checklist step"
         />
+      </div>
+
+      <div class="field">
+        <span>Repeat <small class="muted hint">· lands on Today by itself on those days</small></span>
+        <div class="options" role="radiogroup" aria-label="Repeat">
+          @for (f of frequencies; track f.id) {
+            <button type="button" class="opt" role="radio" [class.on]="repeatFreq() === f.id" [attr.aria-checked]="repeatFreq() === f.id" (click)="repeatFreq.set(f.id)">
+              {{ f.label }}
+            </button>
+          }
+        </div>
+        @if (repeatFreq(); as freq) {
+          <div class="repeat-row">
+            <label class="every">
+              every
+              <input
+                class="input num"
+                type="number"
+                min="1"
+                max="365"
+                [value]="repeatInterval()"
+                (input)="setInterval($event)"
+                aria-label="Repeat interval"
+              />
+              {{ unit() }}
+            </label>
+            @if (freq === 'weekly') {
+              <div class="days" role="group" aria-label="Weekdays">
+                @for (d of weekdays; track d) {
+                  <button type="button" class="day" [class.on]="repeatDays().includes(d)" [attr.aria-pressed]="repeatDays().includes(d)" (click)="toggleDay(d)" [title]="d">
+                    {{ d.slice(0, 2) }}
+                  </button>
+                }
+              </div>
+            }
+            @if (freq === 'monthly') {
+              <label class="every">
+                on the
+                <select class="input num wide" [value]="repeatMonthDay()" (change)="repeatMonthDay.set(+value($event))" aria-label="Day of the month">
+                  @for (n of monthDays; track n) {
+                    <option [value]="n" [selected]="n === repeatMonthDay()">{{ n === 31 ? 'last day' : ordinal(n) }}</option>
+                  }
+                </select>
+              </label>
+            }
+          </div>
+          <small class="muted summary">🔁 {{ repeatSummary() }}</small>
+        }
       </div>
 
       @if (data.kind === 'template') {
@@ -196,6 +245,19 @@ interface ChecklistRow {
     }
     .icon-btn.small { width: 28px; height: 28px; font-size: 13px; }
     .new-step { height: 38px; font-size: 14px; }
+    .repeat-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 4px; }
+    .every { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-muted); }
+    .num { width: 68px; height: 34px; padding: 0 10px; border-radius: var(--radius-sm); font-size: 14px; }
+    .num.wide { width: 110px; }
+    .days { display: flex; gap: 4px; }
+    .day {
+      width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--surface-border); background: var(--surface);
+      font-size: 12px; font-weight: 700; text-transform: capitalize; color: var(--text-muted); cursor: pointer;
+      transition: transform 0.2s var(--ease-spring), background 0.2s, color 0.2s;
+      &:hover { transform: translateY(-1px); }
+      &.on { color: #fff; background: var(--accent-grad); border-color: transparent; }
+    }
+    .summary { font-weight: 600; }
   `,
 })
 export class TaskEditor {
@@ -219,6 +281,62 @@ export class TaskEditor {
   protected readonly tagId = signal<number | null>(this.data.item.tag?.id ?? null);
   protected readonly icon = signal('icon' in this.data.item ? this.data.item.icon : '⭐');
   protected readonly dueDate = signal<string | null>('dueDate' in this.data.item ? this.data.item.dueDate : null);
+
+  // ---- Repeat ----
+  protected readonly frequencies: { id: RepeatFrequency | null; label: string }[] = [
+    { id: null, label: 'Never' },
+    { id: 'daily', label: 'Daily' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'monthly', label: 'Monthly' },
+  ];
+  protected readonly weekdays = WEEKDAYS;
+  protected readonly monthDays = Array.from({ length: 31 }, (_, i) => i + 1);
+  protected readonly ordinal = ordinal;
+  /** The day new rules are based on: the task's planned day, or today. */
+  private readonly baseDate = parseIsoDate(('plannedDate' in this.data.item && this.data.item.plannedDate) || todayIso());
+  private readonly existingRepeat = this.data.item.repeat;
+  protected readonly repeatFreq = signal<RepeatFrequency | null>(this.existingRepeat?.frequency ?? null);
+  protected readonly repeatInterval = signal(this.existingRepeat?.interval ?? 1);
+  protected readonly repeatDays = signal<Weekday[]>(
+    this.existingRepeat?.weekdays.length ? this.existingRepeat.weekdays : [WEEKDAYS[(this.baseDate.getDay() + 6) % 7]],
+  );
+  protected readonly repeatMonthDay = signal(this.existingRepeat?.monthDay ?? this.baseDate.getDate());
+  protected readonly unit = computed(() => {
+    const plural = this.repeatInterval() === 1 ? '' : 's';
+    return { daily: 'day', weekly: 'week', monthly: 'month' }[this.repeatFreq() ?? 'daily'] + plural;
+  });
+  protected readonly repeatSummary = computed(() => {
+    const r = this.repeatInput();
+    return r ? describeRepeat(r) : '';
+  });
+
+  private repeatInput(): RecurrenceInput | null {
+    const frequency = this.repeatFreq();
+    if (!frequency) return null;
+    const input: RecurrenceInput = {
+      frequency,
+      interval: this.repeatInterval(),
+      weekdays: frequency === 'weekly' ? this.repeatDays() : [],
+      monthDay: frequency === 'monthly' ? this.repeatMonthDay() : null,
+    };
+    // Keep the original start when the rule didn't change, so "every 2 days" keeps its rhythm.
+    input.startDate = sameRepeat(input, this.existingRepeat) ? this.existingRepeat!.startDate : null;
+    return input;
+  }
+
+  protected setInterval(e: Event): void {
+    const n = Math.round(Number((e.target as HTMLInputElement).value));
+    if (n >= 1 && n <= 365) this.repeatInterval.set(n);
+  }
+
+  protected toggleDay(day: Weekday): void {
+    const days = this.repeatDays();
+    if (days.includes(day)) {
+      if (days.length > 1) this.repeatDays.set(days.filter((d) => d !== day)); // keep at least one
+    } else {
+      this.repeatDays.set([...days, day]);
+    }
+  }
 
   private nextKey = 0;
   protected readonly checklist = signal<ChecklistRow[]>(
@@ -314,6 +432,7 @@ export class TaskEditor {
       tagId: this.tagId(),
       dueDate: this.dueDate(),
       icon: this.icon(),
+      repeat: this.repeatInput(),
       ...(this.data.kind === 'task'
         ? { subtasks: rows.map((r) => ({ id: r.id, title: r.title.trim(), isDone: r.isDone })) }
         : { checklist: rows.map((r) => r.title.trim()) }),
