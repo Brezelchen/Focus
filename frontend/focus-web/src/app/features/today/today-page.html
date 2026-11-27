@@ -70,7 +70,9 @@
         cdkDropListSortingDisabled
         [cdkDropListEnterPredicate]="noEnter"
       >
-        @for (t of store.templates(); track t.id) {
+        <!-- Track by object, not id: a reused row with a swapped-in object isn't re-rendered after an async
+             (signal-only) update, so the use count, title and icon would stay stale until the next click. -->
+        @for (t of store.templates(); track t) {
           <div
             class="template"
             cdkDrag
@@ -87,9 +89,6 @@
             <span class="t-title">{{ t.title }}</span>
             @if (t.repeat) {
               <span class="t-repeat" [title]="'Repeats: ' + repeatText(t)">🔁</span>
-            }
-            @if (t.useCount > 1) {
-              <span class="t-count">{{ t.useCount }}</span>
             }
             <button class="t-edit" type="button" aria-label="Edit template" (click)="$event.stopPropagation(); editTemplate(t, $event)">✎</button>
             <button class="t-del" type="button" aria-label="Delete template" (click)="deleteTemplate(t, $event)">✕</button>
