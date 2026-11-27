@@ -161,15 +161,23 @@ public sealed class TaskService(IFocusDbContext db, IClock clock, TagService tag
     /// <summary>
     /// Marks a task done. A task that isn't on today's list (backlog or a future day) moves to today,
     /// because that's the day it actually got done.
+    /// With <paramref name="on"/> set to a past day the task was planned for, it is recorded as done on that day
+    /// instead (for when the user forgot to tick it off).
     /// </summary>
-    public async Task<TaskDto> CompleteAsync(int id, CancellationToken ct = default)
+    public async Task<TaskDto> CompleteAsync(int id, DateOnly? on = null, CancellationToken ct = default)
     {
         var task = await LoadAsync(id, ct);
         if (task.Status == TaskItemStatus.Done) return await GetAsync(id, ct);
 
+        var day = on ?? clock.Today;
+        if (day > clock.Today)
+            throw new ValidationException("A task can't be completed on a future day.");
+        if (day < clock.Today && !task.PlanEntries.Any(e => e.Date == day))
+            throw new ValidationException("A task can only be completed on a past day it was planned for.");
+
         var now = clock.UtcNow;
-        if (task.PlannedDate != clock.Today)
-            await MoveToAsync(task, clock.Today, int.MaxValue, ct);
+        if (task.PlannedDate != day)
+            await MoveToAsync(task, day, int.MaxValue, ct);
 
         task.Status = TaskItemStatus.Done;
         task.CompletedAt = now;

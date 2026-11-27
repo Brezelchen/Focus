@@ -23,7 +23,8 @@ public static class TaskEndpoints
             return Results.Created($"/api/tasks/{task.Id}", task);
         }).WithSummary("Create a task from text such as: Write report #work ~45m !high");
         tasks.MapPut("/{id:int}", (int id, UpdateTaskRequest r, TaskService s, CancellationToken ct) => s.UpdateAsync(id, r, ct));
-        tasks.MapPost("/{id:int}/complete", (int id, TaskService s, CancellationToken ct) => s.CompleteAsync(id, ct));
+        tasks.MapPost("/{id:int}/complete", (int id, DateOnly? on, TaskService s, CancellationToken ct) => s.CompleteAsync(id, on, ct))
+            .WithSummary("Mark done (today, or ?on=<date> for a past day the task was planned for)");
         tasks.MapPost("/{id:int}/reopen", (int id, TaskService s, CancellationToken ct) => s.ReopenAsync(id, ct));
         tasks.MapPost("/{id:int}/move", (int id, MoveTaskRequest r, TaskService s, CancellationToken ct) => s.MoveAsync(id, r, ct))
             .WithSummary("Move to a day (or the backlog when date is null) at a position");

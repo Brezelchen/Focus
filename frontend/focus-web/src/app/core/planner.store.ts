@@ -177,6 +177,24 @@ export class PlannerStore {
     }
   }
 
+  /**
+   * Morning recap: records a task returned by the rollover as done on the previous day (the user forgot to tick it off).
+   * Returns false on failure.
+   */
+  async completeOnPreviousDay(task: Task): Promise<boolean> {
+    const prev = this.ritual()?.previousDay;
+    if (!prev) return false;
+    const result = await this.run(this.api.complete(task.id, prev.date));
+    if (!result) return false;
+    this.ritual.update((r) =>
+      r?.previousDay ? { ...r, previousDay: { ...r.previousDay, done: r.previousDay.done + 1 } } : r,
+    );
+    this.backlog.update((list) => list.filter((t) => t.id !== task.id));
+    this.removeFromFocus(task.id);
+    await this.refresh();
+    return true;
+  }
+
   async reopen(task: Task): Promise<void> {
     this.patchLocal(task.id, { status: 'open', completedAt: null });
     await this.run(this.api.reopen(task.id));

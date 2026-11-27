@@ -23,7 +23,10 @@ public sealed record DaySummary(DateOnly Date, int Planned, int Done);
 
 /// <param name="PreviousDay">The most recent earlier day that had a plan, if any.</param>
 /// <param name="ReturnedTasks">Unfinished tasks this rollover moved back to the backlog.</param>
-public sealed record RolloverResult(DaySummary? PreviousDay, IReadOnlyList<TaskDto> ReturnedTasks);
+/// <param name="PreviousDayTaskIds">
+/// The returned tasks that were planned on <paramref name="PreviousDay"/>; these can still be marked done on that day.
+/// </param>
+public sealed record RolloverResult(DaySummary? PreviousDay, IReadOnlyList<TaskDto> ReturnedTasks, IReadOnlyList<int> PreviousDayTaskIds);
 
 public sealed class DayService(IFocusDbContext db, IClock clock, RecurrenceService recurrence)
 {
@@ -139,7 +142,12 @@ public sealed class DayService(IFocusDbContext db, IClock clock, RecurrenceServi
         var returned = await db.Tasks.AsNoTracking().Where(t => ids.Contains(t.Id) && t.PlannedDate == null)
             .OrderBy(t => t.SortOrder).Select(Projections.Task).ToListAsync(ct);
 
-        return new RolloverResult(previous, returned);
+        var fromPreviousDay = previous is null
+            ? []
+            : returned.Where(r => leftovers.Any(t => t.Id == r.Id && t.PlanEntries.Any(e => e.Date == previous.Date)))
+                .Select(r => r.Id).ToList();
+
+        return new RolloverResult(previous, returned, fromPreviousDay);
     }
 
     private async Task<(int Planned, int Done)> CountAsync(DateOnly date, CancellationToken ct)

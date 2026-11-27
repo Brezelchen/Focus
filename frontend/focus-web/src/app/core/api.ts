@@ -52,8 +52,9 @@ export class Api {
   updateTask(id: number, input: TaskInput): Observable<Task> {
     return this.http.put<Task>(`/api/tasks/${id}`, input);
   }
-  complete(id: number): Observable<Task> {
-    return this.http.post<Task>(`/api/tasks/${id}/complete`, {});
+  /** Marks a task done today, or on `on` (a past day the task was planned for). */
+  complete(id: number, on?: IsoDate): Observable<Task> {
+    return this.http.post<Task>(`/api/tasks/${id}/complete`, {}, on ? { params: { on } } : {});
   }
   reopen(id: number): Observable<Task> {
     return this.http.post<Task>(`/api/tasks/${id}/reopen`, {});

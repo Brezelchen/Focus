@@ -122,6 +122,38 @@ public sealed class PlanningHistoryTests : IDisposable
     }
 
     [Fact]
+    public async Task A_forgotten_task_can_be_completed_on_the_previous_day_after_rollover()
+    {
+        var a = await _app.Tasks.CreateAsync(new CreateTaskRequest("Forgot to tick", PlannedDate: Today));
+        var b = await _app.Tasks.CreateAsync(new CreateTaskRequest("Really unfinished", PlannedDate: Today));
+        var yesterday = Today;
+
+        _app.Clock.NextDay();
+        var result = await _app.Days.RolloverAsync();
+        Assert.Equal([a.Id, b.Id], result.PreviousDayTaskIds.Order());
+
+        var done = await _app.Tasks.CompleteAsync(a.Id, yesterday);
+
+        Assert.Equal(yesterday, done.PlannedDate);
+        Assert.Equal(TaskItemStatus.Done, done.Status);
+        Assert.Equal(0, done.PostponedCount);
+        var day = await _app.Days.GetDayAsync(yesterday);
+        Assert.Equal((2, 1), (day.Planned, day.Done));
+        Assert.Equal(["Forgot to tick"], day.Tasks.Select(t => t.Title));
+        Assert.Equal(["Really unfinished"], (await _app.Tasks.GetBacklogAsync(null, null)).Select(t => t.Title));
+        Assert.Equal(0, (await _app.Days.GetDayAsync(Today)).Planned);
+    }
+
+    [Fact]
+    public async Task Completing_on_a_day_the_task_was_not_planned_for_is_rejected()
+    {
+        var a = await _app.Tasks.CreateAsync(new CreateTaskRequest("A"));
+
+        await Assert.ThrowsAsync<ValidationException>(() => _app.Tasks.CompleteAsync(a.Id, Today.AddDays(-1)));
+        await Assert.ThrowsAsync<ValidationException>(() => _app.Tasks.CompleteAsync(a.Id, Today.AddDays(1)));
+    }
+
+    [Fact]
     public async Task Planning_in_the_past_is_rejected()
     {
         await Assert.ThrowsAsync<ValidationException>(() =>

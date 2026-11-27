@@ -129,6 +129,8 @@ export interface DaySummary {
 export interface RolloverResult {
   previousDay: DaySummary | null;
   returnedTasks: Task[];
+  /** Returned tasks that were planned on previousDay; they can still be marked done on that day. */
+  previousDayTaskIds: number[];
 }
 
 export interface TaskInput {
