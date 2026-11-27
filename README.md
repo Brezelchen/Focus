@@ -29,7 +29,7 @@ A cozy, modern todo app: plan **today** from your backlog, reuse the todos you d
 - **Installable & offline-friendly**: install it from the browser or the ⌘ palette. The production build caches the app and your most recent data, so it opens and shows your last plan without a network or server (changes need a connection). A toast offers a reload when a new version is ready.
 - **Morning ritual**: unfinished tasks go back to the backlog overnight. On first open you get yesterday's recap and a one-click "bring back to today".
 - **Stats**: daily completion rate (done ÷ planned), streaks, focus minutes, a 26-week heatmap and insights.
-- **Themes**: light, dark or automatic, with gradients that shift from sunrise to night.
+- **Themes**: light, dark or automatic, and six colour themes from the 🎨 button (or <kbd>Ctrl</kbd>+<kbd>K</kbd>): *Daylight* (the default, gradients shift from sunrise to night), *Sunset*, *Ocean*, *Forest*, *Berry* and *Paper*. The stats charts follow the theme colours.
 - **Dog or cat**: the 🐶/🐱 button above the theme toggle switches your companion everywhere: the Today mascot, the morning ritual and Focus Mode.
 
 Other keyboard shortcuts on Today: <kbd>N</kbd> quick add, <kbd>/</kbd> search backlog, <kbd>←</kbd>/<kbd>→</kbd> change day, <kbd>T</kbd> back to today, <kbd>R</kbd> reflect. <kbd>Ctrl</kbd>+<kbd>K</kbd> works everywhere.

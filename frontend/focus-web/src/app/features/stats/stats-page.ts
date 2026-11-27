@@ -39,7 +39,15 @@ export class StatsPage {
   protected readonly error = signal<string | null>(null);
   protected readonly showTable = signal(false);
 
-  private readonly colors = computed(() => (this.theme.isDark() ? PALETTE.dark : PALETTE.light));
+  /** Neutral colours from the light/dark table; bars and the heatmap ramp follow the colour theme's accents. */
+  private readonly colors = computed(() => {
+    const dark = this.theme.isDark();
+    const { accent1, accent2, background } = this.theme.accents();
+    const ramp = dark
+      ? [0.75, 0.55, 0.3, 0, -0.35].map((t) => (t >= 0 ? mix(accent2, '#000000', t) : mix(accent2, '#ffffff', -t)))
+      : [0.8, 0.55, 0.25, 0, 0.3].map((t, i) => (i < 4 ? mix(accent2, '#ffffff', t) : mix(accent2, '#000000', t)));
+    return { ...(dark ? PALETTE.dark : PALETTE.light), done: accent2, planned: accent1, ramp, background };
+  });
 
   protected readonly todayStat = computed(() => this.year()?.days.at(-1) ?? null);
   protected readonly todayRate = computed(() => {
@@ -153,7 +161,7 @@ export class StatsPage {
         bottom: 4,
         cellSize: ['auto', 15],
         splitLine: { show: false },
-        itemStyle: { color: c.empty, borderColor: this.theme.isDark() ? '#1b1638' : '#ffffff', borderWidth: 3, borderRadius: 4 },
+        itemStyle: { color: c.empty, borderColor: this.theme.isDark() ? c.background : '#ffffff', borderWidth: 3, borderRadius: 4 },
         yearLabel: { show: false },
         monthLabel: { color: c.text, nameMap: 'EN' },
         dayLabel: { color: c.text, firstDay: 1, nameMap: ['S', 'M', 'T', 'W', 'T', 'F', 'S'] },
@@ -229,4 +237,13 @@ function tooltipStyle(dark: boolean) {
     textStyle: { color: dark ? '#f2eefe' : '#2d2340' },
     extraCssText: 'border-radius:12px;box-shadow:0 10px 30px -12px rgba(60,30,90,.45);',
   };
+}
+
+/** Mixes two #rrggbb colours: t = 0 gives `a`, t = 1 gives `b`. Falls back to `a` for other colour formats. */
+function mix(a: string, b: string, t: number): string {
+  const parse = (hex: string) => (/^#[0-9a-f]{6}$/i.test(hex) ? [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) : null);
+  const ca = parse(a);
+  const cb = parse(b);
+  if (!ca || !cb) return a;
+  return '#' + ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }

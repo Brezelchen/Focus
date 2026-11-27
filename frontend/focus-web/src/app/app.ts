@@ -10,6 +10,7 @@ import { ThemeService } from './core/theme.service';
 import { ToastService } from './core/toast.service';
 import { CommandPaletteService } from './features/command-palette/command-palette.service';
 import { AccountMenu } from './shared/account-menu';
+import { ThemePicker } from './shared/theme-picker';
 
 /** Messages for the `auth` query parameter the API adds after linking GitHub from the account menu. */
 const AUTH_NOTICES: Record<string, { text: string; kind: 'success' | 'error' }> = {
@@ -21,7 +22,7 @@ const AUTH_NOTICES: Record<string, { text: string; kind: 'success' | 'error' }> 
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AccountMenu],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AccountMenu, ThemePicker],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,8 +51,6 @@ export class App {
   protected readonly immersive = computed(() => this.url().startsWith('/focus'));
   /** The sign-in page has no navigation either. */
   protected readonly signInPage = computed(() => this.url().startsWith('/login'));
-
-  protected readonly themeIcon = { auto: '🌗', light: '☀️', dark: '🌙' } as const;
 
   constructor() {
     this.showAuthNotice();

@@ -8,7 +8,7 @@ import { PetService } from '../../core/pet.service';
 import { PlannerStore } from '../../core/planner.store';
 import { PwaService } from '../../core/pwa.service';
 import { parseQuickAdd } from '../../core/quick-add';
-import { ThemeService } from '../../core/theme.service';
+import { PALETTES, ThemeService } from '../../core/theme.service';
 import { ToastService } from '../../core/toast.service';
 import { TaskDialogs } from '../today/task-dialogs';
 
@@ -309,6 +309,13 @@ export class CommandPalette {
       },
       { id: 'stats', icon: '📈', label: 'Go to Stats', keywords: 'progress charts streak heatmap', run: () => void this.router.navigate(['/stats']) },
       { id: 'theme', icon: '🌗', label: `Switch to ${themeNext} theme`, keywords: 'dark light mode appearance', run: () => this.theme.cycle() },
+      ...PALETTES.filter((p) => p.id !== this.theme.palette()).map((p) => ({
+        id: `palette-${p.id}`,
+        icon: '🎨',
+        label: `Colour theme: ${p.name}`,
+        keywords: `theme colour color palette appearance ${p.description.toLowerCase()}`,
+        run: () => this.theme.setPalette(p.id),
+      })),
       {
         id: 'pet',
         icon: this.pet.kind() === 'dog' ? '🐱' : '🐶',
