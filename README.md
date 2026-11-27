@@ -2,12 +2,14 @@
 
 A cozy, modern todo app: plan **today** from your backlog, reuse the todos you do all the time, work through them in a full-screen lofi **Focus Mode**, and see how many of your plans actually got done.
 
+![Today: the day's tasks with a progress ring, quick add, templates, the focus tray, the backlog and the evening reflection](docs/screenshots/today.png)
+
+![Focus Mode: a countdown timer over an animated lofi room with a girl at her laptop and her dog asleep on a cushion](docs/screenshots/focus-mode.png)
+
 - **Frontend:** Angular 22 (standalone components, signals, zoneless), Angular CDK drag & drop, ECharts, installable PWA
 - **Backend:** ASP.NET Core 10 minimal APIs, clean-architecture solution (Api / Application / Domain / Infrastructure)
 - **Storage:** SQLite via EF Core, one database with per-user data
 - **Accounts:** email + password or GitHub, with cookie sign-in that lasts (see [Accounts & sign-in](#accounts--sign-in))
-
-See [PLAN.md](PLAN.md) for the full plan, decisions and roadmap.
 
 ## Features
 
