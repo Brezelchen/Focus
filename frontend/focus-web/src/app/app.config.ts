@@ -4,12 +4,13 @@ import { provideRouter, withComponentInputBinding, withViewTransitions } from '@
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { localDateInterceptor } from './core/api';
+import { unauthorizedInterceptor } from './core/auth.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding(), withViewTransitions({ skipInitialTransition: true })),
-    provideHttpClient(withFetch(), withInterceptors([localDateInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([localDateInterceptor, unauthorizedInterceptor])),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',

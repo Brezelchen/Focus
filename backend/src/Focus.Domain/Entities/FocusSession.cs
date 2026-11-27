@@ -1,7 +1,8 @@
 namespace Focus.Domain.Entities;
 
-public class FocusSession
+public class FocusSession : IUserOwned
 {
+    public int? UserId { get; set; }
     public int Id { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }

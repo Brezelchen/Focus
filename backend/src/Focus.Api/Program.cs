@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Focus.Api.Auth;
 using Focus.Api.Endpoints;
 using Focus.Api.Infrastructure;
 using Focus.Application;
@@ -10,11 +11,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// The SQLite file lives in App_Data next to the app unless a connection string is configured.
+// The SQLite file (and the keys that protect sign-in cookies) live in App_Data next to the app,
+// unless a connection string / keys path is configured.
+var dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 var connectionString = builder.Configuration.GetConnectionString("Focus");
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    var dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
     Directory.CreateDirectory(dataDir);
     connectionString = $"Data Source={Path.Combine(dataDir, "focus.db")}";
 }
@@ -22,6 +24,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services
     .AddApplication()
     .AddInfrastructure(connectionString)
+    .AddFocusAuth(builder.Configuration, Path.Combine(dataDir, "keys"))
     .AddHttpContextAccessor()
     .AddSingleton(TimeProvider.System)
     .AddScoped<IClock, HttpClock>()
@@ -51,8 +54,14 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var api = app.MapGroup("/api");
-api.MapTaskEndpoints()
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+
+// Everything under /api needs a signed-in user, except the sign-in endpoints themselves.
+var api = app.MapGroup("/api").RequireAuthorization();
+api.MapAuthEndpoints()
+    .MapTaskEndpoints()
     .MapTemplateEndpoints()
     .MapTagEndpoints()
     .MapFocusSessionEndpoints()

@@ -58,7 +58,7 @@ public sealed class DayService(IFocusDbContext db, IClock clock, RecurrenceServi
         if (reflection?.Length > DayNote.ReflectionMaxLength)
             throw new ValidationException($"A reflection can be at most {DayNote.ReflectionMaxLength} characters.");
 
-        var note = await db.DayNotes.FindAsync([date], ct);
+        var note = await db.DayNotes.FirstOrDefaultAsync(n => n.Date == date, ct);
         if (request.Mood is null && reflection is null)
         {
             if (note is not null)

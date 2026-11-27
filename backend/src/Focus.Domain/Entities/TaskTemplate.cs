@@ -1,8 +1,9 @@
 namespace Focus.Domain.Entities;
 
 /// <summary>A reusable todo. Instantiating it creates a fresh <see cref="TaskItem"/>; the template itself is never consumed.</summary>
-public class TaskTemplate
+public class TaskTemplate : IUserOwned
 {
+    public int? UserId { get; set; }
     public int Id { get; set; }
     public required string Title { get; set; }
     public string? Notes { get; set; }

@@ -1,9 +1,10 @@
 namespace Focus.Domain.Entities;
 
-public class TaskItem
+public class TaskItem : IUserOwned
 {
     public const int TitleMaxLength = 200;
 
+    public int? UserId { get; set; }
     public int Id { get; set; }
     public required string Title { get; set; }
     public string? Notes { get; set; }

@@ -4,11 +4,18 @@ using Focus.Application.Stats;
 using Focus.Application.Tags;
 using Focus.Application.Tasks;
 using Focus.Application.Templates;
+using Focus.Domain.Entities;
 using Focus.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Focus.UnitTests;
+
+/// <summary>The signed-in user for tests. Change <see cref="UserId"/> to act as someone else.</summary>
+public sealed class FakeCurrentUser : ICurrentUser
+{
+    public int? UserId { get; set; }
+}
 
 public sealed class FakeClock : IClock
 {
@@ -30,8 +37,9 @@ public sealed class TestApp : IDisposable
     public TestApp()
     {
         _connection.Open();
-        Db = new FocusDbContext(new DbContextOptionsBuilder<FocusDbContext>().UseSqlite(_connection).Options);
+        Db = new FocusDbContext(new DbContextOptionsBuilder<FocusDbContext>().UseSqlite(_connection).Options, User);
         Db.Database.Migrate();
+        User.UserId = AddUser("Tester");
 
         Tags = new TagService(Db);
         Tasks = new TaskService(Db, Clock, Tags);
@@ -42,6 +50,7 @@ public sealed class TestApp : IDisposable
     }
 
     public FakeClock Clock { get; } = new();
+    public FakeCurrentUser User { get; } = new();
     public FocusDbContext Db { get; }
     public TagService Tags { get; }
     public TaskService Tasks { get; }
@@ -49,6 +58,15 @@ public sealed class TestApp : IDisposable
     public TemplateService Templates { get; }
     public RecurrenceService Recurrence { get; }
     public StatsService Stats { get; }
+
+    /// <summary>Creates another account and returns its id.</summary>
+    public int AddUser(string name)
+    {
+        var user = new User { DisplayName = name, CreatedAt = Clock.UtcNow };
+        Db.Users.Add(user);
+        Db.SaveChanges();
+        return user.Id;
+    }
 
     public void Dispose()
     {

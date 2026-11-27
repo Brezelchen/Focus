@@ -7,17 +7,25 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Focus.IntegrationTests;
 
-public sealed class FocusApiFactory : WebApplicationFactory<Program>
+public class FocusApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"focus-test-{Guid.NewGuid():N}.db");
+    private readonly string _keysPath = Path.Combine(Path.GetTempPath(), $"focus-test-keys-{Guid.NewGuid():N}");
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.UseSetting("ConnectionStrings:Focus", $"Data Source={_dbPath};Pooling=False");
+    protected override void ConfigureWebHost(IWebHostBuilder builder) => builder
+        .UseSetting("ConnectionStrings:Focus", $"Data Source={_dbPath};Pooling=False")
+        .UseSetting("DataProtection:KeysPath", _keysPath)
+        .UseSetting("Authentication:AttemptsPerMinute", "1000");
 
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        try { File.Delete(_dbPath); } catch (IOException) { /* best effort */ }
+        try
+        {
+            File.Delete(_dbPath);
+            Directory.Delete(_keysPath, recursive: true);
+        }
+        catch (IOException) { /* best effort */ }
     }
 }
 
@@ -32,10 +40,13 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
     private sealed record TaskDto(int Id, string Title, string Status, DateOnly? PlannedDate, int? EstimateMinutes, string Priority, TagDto? Tag, DateTime CreatedAt);
     private sealed record DayDto(DateOnly Date, List<TaskDto> Tasks, int Planned, int Done);
 
-    private HttpClient Client(string localDate)
+    /// <summary>A client signed in as a brand-new user (the client keeps the auth cookie).</summary>
+    private async Task<HttpClient> Client(string localDate)
     {
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Local-Date", localDate);
+        var registered = await client.PostAsJsonAsync("/api/auth/register", new { email = $"{Guid.NewGuid():N}@example.com", password = "correct horse" });
+        registered.EnsureSuccessStatusCode();
         return client;
     }
 
@@ -43,7 +54,7 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
     public async Task Plan_complete_and_read_a_day()
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var client = Client(today.ToString("yyyy-MM-dd"));
+        var client = await Client(today.ToString("yyyy-MM-dd"));
 
         var created = await client.PostAsJsonAsync("/api/tasks/quick", new { text = "Write report #work ~45m !high" });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -70,7 +81,7 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
     public async Task Checklist_and_reflection_endpoints()
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var client = Client(today.ToString("yyyy-MM-dd"));
+        var client = await Client(today.ToString("yyyy-MM-dd"));
 
         var created = await client.PostAsJsonAsync("/api/tasks", new { title = "Pack", subtasks = new[] { "Passport" } });
         var task = (await created.Content.ReadFromJsonAsync<TaskWithChecklist>(Json))!;
@@ -98,7 +109,7 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
     public async Task Repeat_endpoint_sets_and_clears_a_rule()
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var client = Client(today.ToString("yyyy-MM-dd"));
+        var client = await Client(today.ToString("yyyy-MM-dd"));
         var task = (await (await client.PostAsJsonAsync("/api/tasks", new { title = "Plan week" })).Content.ReadFromJsonAsync<RepeatingTask>(Json))!;
 
         var set = await client.PutAsJsonAsync($"/api/tasks/{task.Id}/repeat",
@@ -116,7 +127,7 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
     [Fact]
     public async Task Errors_are_problem_details()
     {
-        var client = Client(DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"));
+        var client = await Client(DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"));
 
         var invalid = await client.PostAsJsonAsync("/api/tasks/quick", new { text = "   " });
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);

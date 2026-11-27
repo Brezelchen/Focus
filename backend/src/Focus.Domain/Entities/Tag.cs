@@ -1,7 +1,8 @@
 namespace Focus.Domain.Entities;
 
-public class Tag
+public class Tag : IUserOwned
 {
+    public int? UserId { get; set; }
     public int Id { get; set; }
     public required string Name { get; set; }
 

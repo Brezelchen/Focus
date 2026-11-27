@@ -160,6 +160,9 @@
   &.immersive {
     padding: 0;
   }
+  &.bare {
+    padding: 24px 16px;
+  }
 }
 
 .offline {
@@ -196,7 +199,8 @@
   }
   .pet-btn,
   .theme-btn,
-  .palette-btn {
+  .palette-btn,
+  .account {
     flex: none;
   }
   .install-btn {
@@ -216,6 +220,10 @@
   }
   .main {
     padding: 16px 16px 96px;
+
+    &.bare {
+      padding: 16px;
+    }
   }
 }
 

@@ -5,7 +5,7 @@
   <span class="grain"></span>
 </div>
 
-@if (!immersive()) {
+@if (!immersive() && !signInPage()) {
   <nav class="nav glass" aria-label="Main">
     <a class="brand" routerLink="/" aria-label="Focus home">
       <span class="logo" aria-hidden="true">◎</span>
@@ -56,16 +56,17 @@
     >
       {{ themeIcon[theme.mode()] }}
     </button>
+    <app-account-menu class="account" />
   </nav>
 }
 
-<main class="main" [class.immersive]="immersive()">
+<main class="main" [class.immersive]="immersive()" [class.bare]="signInPage()">
   @if (!pwa.online() && !immersive()) {
     <div class="offline glass" role="status">
       <span aria-hidden="true">📴</span> You're offline. You're seeing what was saved last time; changes need a connection and will
       fail until you're back.
     </div>
-  } @else if (store.offline() && !immersive()) {
+  } @else if (store.offline() && !immersive() && !signInPage()) {
     <div class="offline glass" role="status">
       <span aria-hidden="true">🔌</span> Can't reach the Focus server. Start it with <code>dotnet run</code> in
       <code>backend/src/Focus.Api</code>.

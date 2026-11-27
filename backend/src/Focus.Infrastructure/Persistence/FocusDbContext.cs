@@ -5,7 +5,12 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Focus.Infrastructure.Persistence;
 
-public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : DbContext(options), IFocusDbContext
+/// <summary>
+/// Every query only sees the signed-in user's data (global query filters), and new rows are stamped with that
+/// user when saved, so the application services don't need to know about users.
+/// </summary>
+public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options, ICurrentUser? currentUser = null)
+    : DbContext(options), IFocusDbContext
 {
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<TaskTemplate> Templates => Set<TaskTemplate>();
@@ -15,14 +20,60 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
     public DbSet<FocusSessionTask> FocusSessionTasks => Set<FocusSessionTask>();
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<DayNote> DayNotes => Set<DayNote>();
+    public DbSet<User> Users => Set<User>();
+
+    /// <summary>The signed-in user's id, or -1 (matches nothing) when nobody is signed in.</summary>
+    private int CurrentUserId => currentUser?.UserId ?? -1;
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampOwner();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampOwner();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    private void StampOwner()
+    {
+        foreach (var entry in ChangeTracker.Entries<IUserOwned>())
+        {
+            if (entry.State != EntityState.Added || entry.Entity.UserId is not null) continue;
+            entry.Entity.UserId = currentUser?.UserId
+                ?? throw new InvalidOperationException($"Can't save a {entry.Entity.GetType().Name} without a signed-in user.");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<User>(e =>
+        {
+            e.Property(u => u.DisplayName).HasMaxLength(User.NameMaxLength).IsRequired();
+            e.Property(u => u.Email).HasMaxLength(User.EmailMaxLength);
+            e.Property(u => u.GitHubLogin).HasMaxLength(100);
+            e.Property(u => u.AvatarUrl).HasMaxLength(500);
+            e.HasIndex(u => u.Email).IsUnique();
+            e.HasIndex(u => u.GitHubId).IsUnique();
+        });
+
+        OwnedByUser<TaskItem>(model);
+        OwnedByUser<TaskTemplate>(model);
+        OwnedByUser<Tag>(model);
+        OwnedByUser<FocusSession>(model);
+        OwnedByUser<DayNote>(model);
+        // Child rows are only reachable through their (filtered) parent.
+        model.Entity<DayPlanEntry>().HasQueryFilter(p => p.TaskItem.UserId == CurrentUserId);
+        model.Entity<Subtask>().HasQueryFilter(s => s.TaskItem.UserId == CurrentUserId);
+        model.Entity<FocusSessionTask>().HasQueryFilter(t => t.FocusSession.UserId == CurrentUserId);
+
         model.Entity<Tag>(e =>
         {
             e.Property(t => t.Name).HasMaxLength(40).IsRequired();
             e.Property(t => t.Color).HasMaxLength(20).IsRequired();
-            e.HasIndex(t => t.Name).IsUnique();
+            e.HasIndex(t => new { t.UserId, t.Name }).IsUnique();
         });
 
         model.Entity<TaskItem>(e =>
@@ -32,7 +83,7 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
             e.Property(t => t.Notes).HasMaxLength(4000);
             e.HasOne(t => t.Tag).WithMany().HasForeignKey(t => t.TagId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(t => t.Template).WithMany().HasForeignKey(t => t.TemplateId).OnDelete(DeleteBehavior.SetNull);
-            e.HasIndex(t => new { t.PlannedDate, t.Status, t.SortOrder });
+            e.HasIndex(t => new { t.UserId, t.PlannedDate, t.Status, t.SortOrder });
         });
 
         model.Entity<TaskTemplate>(e =>
@@ -60,13 +111,13 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
 
         model.Entity<DayNote>(e =>
         {
-            e.HasKey(n => n.Date);
+            e.HasIndex(n => new { n.UserId, n.Date }).IsUnique();
             e.Property(n => n.Reflection).HasMaxLength(DayNote.ReflectionMaxLength);
         });
 
         model.Entity<FocusSession>(e =>
         {
-            e.HasIndex(s => s.Date);
+            e.HasIndex(s => new { s.UserId, s.Date });
         });
 
         model.Entity<FocusSessionTask>(e =>
@@ -76,6 +127,13 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options) : D
             e.HasOne(t => t.TaskItem).WithMany().HasForeignKey(t => t.TaskItemId).OnDelete(DeleteBehavior.Cascade);
         });
     }
+
+    private void OwnedByUser<T>(ModelBuilder model) where T : class, IUserOwned =>
+        model.Entity<T>(e =>
+        {
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => x.UserId == CurrentUserId);
+        });
 
     protected override void ConfigureConventions(ModelConfigurationBuilder conventions)
     {

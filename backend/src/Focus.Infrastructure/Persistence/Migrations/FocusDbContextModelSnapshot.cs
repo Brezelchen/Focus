@@ -19,6 +19,10 @@ namespace Focus.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Focus.Domain.Entities.DayNote", b =>
                 {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("TEXT");
 
@@ -33,7 +37,13 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("Date");
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Date")
+                        .IsUnique();
 
                     b.ToTable("DayNotes");
                 });
@@ -97,9 +107,12 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Date");
+                    b.HasIndex("UserId", "Date");
 
                     b.ToTable("FocusSessions");
                 });
@@ -165,9 +178,12 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("UserId", "Name")
                         .IsUnique();
 
                     b.ToTable("Tags");
@@ -225,13 +241,16 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TagId");
 
                     b.HasIndex("TemplateId");
 
-                    b.HasIndex("PlannedDate", "Status", "SortOrder");
+                    b.HasIndex("UserId", "PlannedDate", "Status", "SortOrder");
 
                     b.ToTable("Tasks", (string)null);
                 });
@@ -299,11 +318,70 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Property<int>("UseCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TagId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Templates", (string)null);
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("GitHubId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GitHubLogin")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSignInAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("GitHubId")
+                        .IsUnique();
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.DayNote", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("Focus.Domain.Entities.DayPlanEntry", b =>
@@ -315,6 +393,14 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("TaskItem");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.FocusSession", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("Focus.Domain.Entities.FocusSessionTask", b =>
@@ -347,6 +433,14 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Navigation("TaskItem");
                 });
 
+            modelBuilder.Entity("Focus.Domain.Entities.Tag", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
             modelBuilder.Entity("Focus.Domain.Entities.TaskItem", b =>
                 {
                     b.HasOne("Focus.Domain.Entities.Tag", "Tag")
@@ -359,6 +453,11 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.Navigation("Tag");
 
                     b.Navigation("Template");
@@ -370,6 +469,11 @@ namespace Focus.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Tag");
                 });

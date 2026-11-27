@@ -14,6 +14,7 @@ public interface IFocusDbContext
     DbSet<FocusSessionTask> FocusSessionTasks { get; }
     DbSet<Subtask> Subtasks { get; }
     DbSet<DayNote> DayNotes { get; }
+    DbSet<User> Users { get; }
 
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 
