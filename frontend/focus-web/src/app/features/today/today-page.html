@@ -1,4 +1,4 @@
-<div class="page" cdkDropListGroup>
+<div class="page" cdkDropListGroup [attr.data-pane]="pane()">
   <!-- ===== Header: greeting, day switcher, progress ===== -->
   <header class="hero glass">
     <div class="hero-text">
@@ -17,13 +17,13 @@
         }
       </div>
       <div class="pup-line">
-        <app-pup [mood]="pupMood()" [size]="64" />
+        <app-pup [mood]="pupMood()" [size]="narrow() ? 48 : 64" />
         <p class="bubble">{{ pupLine() }}</p>
       </div>
     </div>
 
     <div class="hero-stats">
-      <app-progress-ring [value]="store.progress()" [size]="128" [label]="percent() + '% of planned tasks done'">
+      <app-progress-ring [value]="store.progress()" [size]="narrow() ? 84 : 128" [label]="percent() + '% of planned tasks done'">
         <div class="ring-text">
           <strong>{{ store.day()?.done ?? 0 }}<span>/{{ store.day()?.planned ?? 0 }}</span></strong>
           <small>done</small>
@@ -34,6 +34,16 @@
       }
     </div>
   </header>
+
+  <!-- Phones only: switch between the day and the backlog instead of scrolling past one to reach the other. -->
+  <div class="pane-switch glass" role="tablist" aria-label="Show">
+    <button type="button" role="tab" [attr.aria-selected]="pane() === 'day'" (click)="pane.set('day')">
+      🗓️ {{ dayTitle() }} <span class="count">{{ store.openTasks().length }}</span>
+    </button>
+    <button type="button" role="tab" [attr.aria-selected]="pane() === 'backlog'" (click)="pane.set('backlog')">
+      📥 Backlog <span class="count">{{ store.backlog().length }}</span>
+    </button>
+  </div>
 
   <!-- ===== Left column: quick add, templates, the day's list ===== -->
   <section class="day-col">
@@ -47,7 +57,7 @@
           (input)="quickText.set(value($event))"
           (keydown.enter)="quickAdd($event, 'day')"
           (keydown.shift.enter)="quickAdd($event, 'backlog')"
-          [placeholder]="'Add to ' + dayTitle().toLowerCase() + '…  e.g. Write report #work ~45m !high @fri'"
+          [placeholder]="quickPlaceholder()"
           aria-label="Quick add a task"
           maxlength="300"
         />
@@ -90,8 +100,18 @@
             @if (t.repeat) {
               <span class="t-repeat" [title]="'Repeats: ' + repeatText(t)">🔁</span>
             }
-            <button class="t-edit" type="button" aria-label="Edit template" (click)="$event.stopPropagation(); editTemplate(t, $event)">✎</button>
-            <button class="t-del" type="button" aria-label="Delete template" (click)="deleteTemplate(t, $event)">✕</button>
+            <!-- Stop click/Enter here so opening the menu doesn't also add the template. -->
+            <button
+              class="t-more"
+              type="button"
+              [cdkMenuTriggerFor]="templateMenu"
+              [cdkMenuTriggerData]="{ $implicit: t }"
+              [attr.aria-label]="'Actions for template ' + t.title"
+              (click)="$event.stopPropagation()"
+              (keydown.enter)="$event.stopPropagation()"
+            >
+              ⋯
+            </button>
           </div>
         } @empty {
           <p class="muted empty-templates">
@@ -100,6 +120,17 @@
         }
       </div>
     </div>
+
+    <ng-template #templateMenu let-t>
+      <div class="action-menu glass" cdkMenu>
+        @if (!store.isPast()) {
+          <button cdkMenuItem (cdkMenuItemTriggered)="store.useTemplate(t, 'day')">☀️ Add to {{ dayTitle().toLowerCase() }}</button>
+        }
+        <button cdkMenuItem (cdkMenuItemTriggered)="store.useTemplate(t, 'backlog')">📥 Add to backlog</button>
+        <button cdkMenuItem (cdkMenuItemTriggered)="dialogs.editTemplate(t)">✏️ Edit</button>
+        <button cdkMenuItem class="danger" (cdkMenuItemTriggered)="store.deleteTemplate(t)">🗑️ Delete</button>
+      </div>
+    </ng-template>
 
     <!-- The day's open tasks -->
     <div
@@ -223,7 +254,8 @@
         #searchBox
         class="input search"
         type="search"
-        placeholder="Search…  ( / )"
+        placeholder="Search backlog…"
+        title="Search backlog (/)"
         [value]="search()"
         (input)="search.set(value($event))"
         aria-label="Search backlog"

@@ -283,9 +283,42 @@ table {
   }
 }
 
-@media (max-width: 480px) {
+/* Phones: today across the top, the three numbers side by side underneath. */
+@media (max-width: 560px) {
   .tiles {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .today-tile {
+    grid-column: 1 / -1;
+  }
+  .tile {
+    padding: 14px 12px;
+  }
+  .tile-icon {
+    font-size: 18px;
+  }
+  .tile-value {
+    font-size: 26px;
+    small {
+      margin-left: 2px;
+      font-size: 13px;
+    }
+  }
+  .tile-label {
+    font-size: 13px;
+  }
+  .tile-sub {
+    font-size: 11px;
+  }
+  .card {
+    padding: 16px 14px;
+  }
+}
+
+@media (hover: none) {
+  .tile:hover {
+    transform: none;
   }
 }
 

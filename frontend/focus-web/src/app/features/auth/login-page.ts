@@ -110,6 +110,7 @@ const ERRORS: Record<string, string> = {
   styles: `
     :host {
       display: grid;
+      grid-template-columns: minmax(0, 1fr); /* lets the card shrink below 420px on phones */
       place-items: center;
       min-height: calc(100dvh - 48px);
     }
@@ -117,6 +118,7 @@ const ERRORS: Record<string, string> = {
       width: 420px;
       max-width: 100%;
       padding: 32px 28px 24px;
+      @media (max-width: 420px) { padding: 24px 18px 20px; }
       text-align: center;
       background: var(--surface-strong);
     }

@@ -9,7 +9,7 @@ A cozy, modern todo app: plan **today** from your backlog, reuse the todos you d
 - **Frontend:** Angular 22 (standalone components, signals, zoneless), Angular CDK drag & drop, ECharts, installable PWA
 - **Backend:** ASP.NET Core 10 minimal APIs, clean-architecture solution (Api / Application / Domain / Infrastructure)
 - **Storage:** SQLite via EF Core, one database with per-user data
-- **Accounts:** email + password or GitHub, with cookie sign-in that lasts (see [Accounts & sign-in](#accounts--sign-in))
+- **Accounts:** email + password, with cookie sign-in that lasts (see [Accounts & sign-in](#accounts--sign-in))
 
 ## Features
 
@@ -61,27 +61,8 @@ The OpenAPI document is at `http://localhost:5080/openapi/v1.json` in developmen
 Everyone signs in, and each account only sees its own tasks, templates, tags, focus sessions and reflections. Data from before accounts existed goes to the **first account created**.
 
 - **Email + password**: "Create an account" on the sign-in page.
-- **GitHub**: shown once GitHub credentials are configured (below). Signing in with GitHub creates an account, or use *Connect GitHub* in the account menu (avatar in the navigation) to add it to an existing one. Accounts are never merged by email: if a password account already uses your GitHub email, sign in with the password and connect GitHub from there.
 - **You stay signed in**: the sign-in cookie lasts a year and renews itself while you use Focus, so you only sign in again after a year without opening the app, or after signing out. The keys that protect the cookie are stored in `backend/src/Focus.Api/App_Data/keys` (change with `DataProtection__KeysPath`), so restarting or redeploying the server doesn't sign anyone out. Keep that folder when you move the database. An installed app opened offline stays signed in as the last user.
 - Sign-in attempts are limited to 10 per minute per client address.
-
-### Setting up GitHub sign-in
-
-1. Create an OAuth app at <https://github.com/settings/developers> → *New OAuth App*.
-   - **Homepage URL**: `http://localhost:4200` (or where Focus runs)
-   - **Authorization callback URL**: `http://localhost:4200/api/auth/github/callback` for the dev server. Use `http://localhost:5080/api/auth/github/callback` for the single-process build, or your public URL in production. GitHub allows one callback URL per OAuth app, so create one app per address if you need several.
-2. Store the credentials with user secrets (development) or environment variables (production):
-
-```bash
-cd backend/src/Focus.Api
-dotnet user-secrets set "Authentication:GitHub:ClientId" "<client id>"
-dotnet user-secrets set "Authentication:GitHub:ClientSecret" "<client secret>"
-# or: Authentication__GitHub__ClientId=... Authentication__GitHub__ClientSecret=...
-```
-
-3. Restart the API. The sign-in page now shows *Continue with GitHub*.
-
-Behind a reverse proxy that terminates HTTPS, make sure the API sees the original scheme and host (forwarded headers), otherwise GitHub gets an `http://` callback URL.
 
 ## Production / single process
 

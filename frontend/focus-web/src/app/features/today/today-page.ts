@@ -1,4 +1,5 @@
 import { Dialog } from '@angular/cdk/dialog';
+import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import {
   CdkDrag,
   CdkDragDrop,
@@ -7,7 +8,7 @@ import {
   CdkDropListGroup,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { addDays, formatMinutes, greeting, longDate, relativeDayName } from '../../core/dates';
 import { describeRepeat, lowerFirst } from '../../core/recurrence';
@@ -24,9 +25,24 @@ import { TaskDialogs } from './task-dialogs';
 /** What's being dragged: an existing task, or a template that will create a new task on drop. */
 type DragItem = { kind: 'task'; task: Task } | { kind: 'template'; template: Template };
 
+/** Phone width: matches the `max-width: 560px` breakpoint in today-page.scss. */
+const NARROW = '(max-width: 560px)';
+
 @Component({
   selector: 'app-today-page',
-  imports: [CdkDropListGroup, CdkDropList, CdkDrag, CdkDragPlaceholder, TaskCard, ProgressRing, Pup, DayReflection],
+  imports: [
+    CdkDropListGroup,
+    CdkDropList,
+    CdkDrag,
+    CdkDragPlaceholder,
+    CdkMenuTrigger,
+    CdkMenu,
+    CdkMenuItem,
+    TaskCard,
+    ProgressRing,
+    Pup,
+    DayReflection,
+  ],
   templateUrl: './today-page.html',
   styleUrl: './today-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,7 +53,7 @@ export class TodayPage {
   private readonly pet = inject(PetService);
   private readonly dialog = inject(Dialog);
   private readonly router = inject(Router);
-  private readonly dialogs = inject(TaskDialogs);
+  protected readonly dialogs = inject(TaskDialogs);
 
   private readonly quickInput = viewChild<ElementRef<HTMLInputElement>>('quick');
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchBox');
@@ -48,6 +64,14 @@ export class TodayPage {
   protected readonly tagFilter = signal<number | null>(null);
   protected readonly showDone = signal(true);
   protected readonly adding = signal(false);
+  /** On phones the day and the backlog are two tabs instead of a long stacked page. */
+  protected readonly pane = signal<'day' | 'backlog'>('day');
+  protected readonly narrow = signal(matchMedia(NARROW).matches);
+  protected readonly quickPlaceholder = computed(() =>
+    this.narrow()
+      ? `Add to ${this.dayTitle().toLowerCase()}…  #tag ~30m`
+      : `Add to ${this.dayTitle().toLowerCase()}…  e.g. Write report #work ~45m !high @fri`,
+  );
 
   protected readonly dayTitle = computed(() => relativeDayName(this.store.selectedDate(), this.store.today()));
   protected readonly dateLabel = computed(() => longDate(this.store.selectedDate()));
@@ -98,6 +122,11 @@ export class TodayPage {
   });
 
   constructor() {
+    const mq = matchMedia(NARROW);
+    const onChange = (e: MediaQueryListEvent) => this.narrow.set(e.matches);
+    mq.addEventListener('change', onChange);
+    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onChange));
+
     // Open the morning ritual once data says so.
     effect(() => {
       if (this.store.ritual() && !this.dialog.openDialogs.length) {
@@ -216,11 +245,6 @@ export class TodayPage {
     this.dialogs.editTemplate(template);
   }
 
-  protected deleteTemplate(template: Template, event: Event): void {
-    event.stopPropagation();
-    void this.store.deleteTemplate(template);
-  }
-
   protected startFocus(): void {
     void this.router.navigate(['/focus']);
   }
@@ -236,6 +260,7 @@ export class TodayPage {
       this.quickInput()?.nativeElement.focus();
     } else if (e.key === '/') {
       e.preventDefault();
+      this.pane.set('backlog');
       this.searchInput()?.nativeElement.focus();
     } else if (e.key === 'ArrowLeft') {
       void this.store.shiftDay(-1);

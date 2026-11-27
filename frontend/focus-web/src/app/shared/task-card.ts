@@ -98,7 +98,7 @@ export type TaskAction = 'edit' | 'delete' | 'template' | 'untemplate' | 'focus'
     }
 
     <ng-template #menu>
-      <div class="menu glass" cdkMenu>
+      <div class="action-menu glass" cdkMenu>
         @if (isDone()) {
           <button cdkMenuItem (cdkMenuItemTriggered)="action.emit('reopen')">↩️ Mark as not done</button>
         } @else {

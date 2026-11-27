@@ -246,7 +246,21 @@ interface ChecklistRow {
       &.on { border-color: transparent; box-shadow: 0 0 0 2px var(--accent-2); font-weight: 700; }
     }
     .new-tag { width: 120px; height: 32px; border-radius: var(--radius-pill); font-size: 13px; padding: 0 12px; }
-    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    /* Pinned to the bottom of the scrolling dialog so Save is always reachable on a phone. */
+    .actions {
+      position: sticky; bottom: -24px; z-index: 1;
+      display: flex; justify-content: flex-end; gap: 8px;
+      margin: 8px -24px -24px; padding: 12px 24px 16px;
+      /* --surface-strong is slightly see-through; the opaque page colour underneath hides the fields scrolling by. */
+      background: linear-gradient(var(--surface-strong), var(--surface-strong)) var(--bg-1);
+      border-top: 1px solid var(--surface-border);
+    }
+    @media (max-width: 560px) {
+      .editor { padding: 20px 18px; max-height: calc(100dvh - 24px); }
+      .actions { bottom: -20px; margin: 8px -18px -20px; padding: 12px 18px calc(12px + env(safe-area-inset-bottom)); }
+      .actions .btn { flex: 1; }
+      .opt { height: 36px; }
+    }
     .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     .step {
       display: flex; align-items: center; gap: 8px; padding: 2px 4px 2px 6px;

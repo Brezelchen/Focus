@@ -162,34 +162,29 @@
   opacity: 1;
 }
 
-.menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 200px;
-  padding: 6px;
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  animation: dialog-in 0.2s var(--ease-out);
-
-  button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
-    border: 0;
-    border-radius: 10px;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    font-weight: 500;
-
-    &:hover,
-    &:focus {
-      outline: none;
-      background: var(--surface-hover);
+/* Touch: no hover to reveal ⋯, no sticky hover lift, and finger-sized targets. */
+@media (hover: none) {
+  :host(:hover) {
+    transform: none;
+    box-shadow: 0 4px 14px -10px rgba(60, 30, 90, 0.35);
+  }
+  .more {
+    opacity: 0.8;
+    width: 40px;
+    height: 40px;
+  }
+  .check {
+    width: 30px;
+    height: 30px;
+  }
+  .checklist {
+    label {
+      padding: 6px;
     }
-    &.danger {
-      color: var(--danger);
+    input {
+      width: 20px;
+      height: 20px;
+      margin-top: 0;
     }
   }
 }

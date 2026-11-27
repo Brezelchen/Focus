@@ -227,6 +227,21 @@ select {
   color: inherit;
 }
 
+/* iOS Safari zooms the page into any focused field with text smaller than 16px. The !important
+   beats the smaller sizes that compact fields set in component styles. */
+@media (pointer: coarse) {
+  input:not([type='checkbox'], [type='radio'], [type='range']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* No grey flash on tap; buttons react with their own :active states. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -351,6 +366,39 @@ textarea.input {
   min-height: 90px;
   padding: 12px 16px;
   resize: vertical;
+}
+
+/* ⋯ dropdown for task cards and templates (CDK menu, rendered in the overlay). */
+.action-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  animation: dialog-in 0.2s var(--ease-out);
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-weight: 500;
+
+    &:hover,
+    &:focus {
+      outline: none;
+      background: var(--surface-hover);
+    }
+    &.danger {
+      color: var(--danger);
+    }
+  }
 }
 
 .chip {

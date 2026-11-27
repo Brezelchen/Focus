@@ -188,41 +188,54 @@
     top: auto;
     left: 12px;
     right: 12px;
-    bottom: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     width: auto;
-    height: 68px;
+    height: 64px;
     flex-direction: row;
-    padding: 8px 10px;
+    gap: 6px;
+    padding: 6px 8px;
   }
   .brand {
     display: none;
   }
-  .pet-btn,
   .theme-btn,
   .palette-btn,
   .account {
     flex: none;
   }
-  .install-btn {
-    display: none; /* still offered in the command palette */
+  .install-btn,
+  .pet-btn {
+    display: none; /* both still in the command palette */
+  }
+  .label-long {
+    display: none;
   }
   .links {
     flex-direction: row;
     justify-content: space-around;
+    gap: 4px;
     a {
       flex: 1;
       width: auto;
-      padding: 6px 2px;
+      padding: 5px 2px;
+      gap: 0;
+
+      &:hover {
+        transform: none;
+      }
+    }
+    .ico {
+      font-size: 20px;
     }
     .focus-link {
       margin-top: 0;
     }
   }
   .main {
-    padding: 16px 16px 96px;
+    padding: max(16px, env(safe-area-inset-top)) 16px calc(92px + env(safe-area-inset-bottom));
 
     &.bare {
-      padding: 16px;
+      padding: max(16px, env(safe-area-inset-top)) 16px 16px;
     }
   }
 }
@@ -270,6 +283,6 @@
 
 @media (max-width: 760px) {
   .toasts {
-    bottom: 96px;
+    bottom: calc(86px + env(safe-area-inset-bottom));
   }
 }

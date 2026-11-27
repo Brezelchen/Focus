@@ -667,3 +667,10 @@ input[type='range'] {
     text-decoration: line-through;
   }
 }
+
+/* Keyboard shortcuts mean nothing on a touch screen. */
+@media (hover: none) and (pointer: coarse) {
+  .keys {
+    display: none;
+  }
+}
