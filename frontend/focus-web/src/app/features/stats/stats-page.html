@@ -46,6 +46,13 @@
       <span class="tile-label">Focus time</span>
       <span class="tile-sub muted">{{ summary()?.totals?.sessions ?? 0 }} {{ summary()?.totals?.sessions === 1 ? 'session' : 'sessions' }} · last {{ range() }} days</span>
     </div>
+
+    <a class="tile glass enter-fade-up habits-tile" routerLink="/habits" style="animation-delay: 240ms">
+      <span class="tile-icon" aria-hidden="true">🌱</span>
+      <span class="tile-value">{{ habitPercent() }}<small>%</small></span>
+      <span class="tile-label">Habits</span>
+      <span class="tile-sub muted">{{ summary()?.totals?.habitsDone ?? 0 }} of {{ summary()?.totals?.habitsDue ?? 0 }} · last {{ range() }} days</span>
+    </a>
   </section>
 
   <!-- ===== Charts ===== -->
@@ -61,7 +68,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Day</th><th>Planned</th><th>Done</th><th>Focus</th><th>Mood</th></tr>
+              <tr><th>Day</th><th>Planned</th><th>Done</th><th>Focus</th><th>Habits</th><th>Mood</th></tr>
             </thead>
             <tbody>
               @for (d of summary()?.days ?? []; track d.date) {
@@ -70,6 +77,7 @@
                   <td>{{ d.planned }}</td>
                   <td>{{ d.done }}</td>
                   <td>{{ fmt(d.focusMinutes) || '–' }}</td>
+                  <td>{{ d.habitsDue ? d.habitsDone + '/' + d.habitsDue : '–' }}</td>
                   <td [title]="d.reflection ?? ''">{{ moodEmoji(d.mood) || '–' }}</td>
                 </tr>
               }
@@ -120,6 +128,45 @@
           </ul>
           <p class="muted tip">Tip: break these into smaller steps, or let them go.</p>
         }
+      }
+    </div>
+
+    <div class="card glass wide">
+      <div class="card-head">
+        <h2>🌱 Habits</h2>
+        <a class="link-btn" routerLink="/habits">Open tracker</a>
+      </div>
+      @if (summary()?.totals?.habitsDue) {
+        <div class="habit-grid">
+          @if (habitChart(); as opts) {
+            <div class="chart small" echarts [options]="opts" [autoResize]="true"></div>
+          }
+          @if (insights(); as i) {
+            <div class="habit-facts">
+              @if (i.habitStreaks.length) {
+                <h3>Streaks</h3>
+                <ul class="streaks">
+                  @for (s of i.habitStreaks; track s.habitId) {
+                    <li>
+                      <span>{{ s.icon }} {{ s.title }}</span>
+                      <span class="chip" data-color="honey">🔥 {{ s.current }}</span>
+                      <small class="muted">best {{ s.best }}</small>
+                    </li>
+                  }
+                </ul>
+              }
+              @for (m of i.habitMoods; track m.habitId) {
+                <p class="mood-insight">
+                  <span aria-hidden="true">{{ m.icon }}</span>
+                  On days you did <strong>{{ m.title.toLowerCase() }}</strong>, you felt good
+                  <strong>{{ pct(m.goodRateWith) }}%</strong> of the time, vs {{ pct(m.goodRateWithout) }}% otherwise.
+                </p>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="muted empty">Habits you tick off show up here. <a routerLink="/habits">Set some up →</a></p>
       }
     </div>
 

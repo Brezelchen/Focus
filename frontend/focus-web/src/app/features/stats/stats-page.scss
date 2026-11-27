@@ -56,7 +56,7 @@
 /* ---- Tiles ---- */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -278,15 +278,18 @@ table {
   .tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .today-tile {
+    grid-column: 1 / -1;
+  }
   .charts {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* Phones: today across the top, the three numbers side by side underneath. */
+/* Phones: today across the top, the four numbers two by two underneath. */
 @media (max-width: 560px) {
   .tiles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
   .today-tile {
@@ -367,5 +370,72 @@ table {
   }
   .j-text {
     flex-basis: 100%;
+  }
+}
+
+/* ---- Habits ---- */
+.habits-tile {
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.habit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.habit-facts h3 {
+  margin-top: 0;
+}
+
+.streaks {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+
+    span:first-child {
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+}
+
+.mood-insight {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 14px;
+}
+
+@media (max-width: 860px) {
+  .habit-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Five tiles get tight between tablet and wide desktop: today on its own row there. */
+@media (min-width: 1021px) and (max-width: 1240px) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .today-tile {
+    grid-column: 1 / -1;
   }
 }

@@ -135,6 +135,138 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.ToTable("FocusSessionTasks");
                 });
 
+            modelBuilder.Entity("Focus.Domain.Entities.Habit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("ArchivedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CountsFocusMinutes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly?>("Month")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepeatFrequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepeatInterval")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RepeatMonthDay")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("RepeatStart")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepeatWeekdays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Target")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TimeOfDay")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(12)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Month", "SortOrder");
+
+                    b.ToTable("Habits");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.HabitCheckIn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HabitId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Skipped")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HabitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("HabitCheckIns");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.HabitMonthNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Emoji")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Word")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Month")
+                        .IsUnique();
+
+                    b.ToTable("HabitMonthNotes");
+                });
+
             modelBuilder.Entity("Focus.Domain.Entities.Subtask", b =>
                 {
                     b.Property<int>("Id")
@@ -422,6 +554,33 @@ namespace Focus.Infrastructure.Persistence.Migrations
                     b.Navigation("TaskItem");
                 });
 
+            modelBuilder.Entity("Focus.Domain.Entities.Habit", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.HabitCheckIn", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.Habit", "Habit")
+                        .WithMany("CheckIns")
+                        .HasForeignKey("HabitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Habit");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.HabitMonthNote", b =>
+                {
+                    b.HasOne("Focus.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
             modelBuilder.Entity("Focus.Domain.Entities.Subtask", b =>
                 {
                     b.HasOne("Focus.Domain.Entities.TaskItem", "TaskItem")
@@ -481,6 +640,11 @@ namespace Focus.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Focus.Domain.Entities.FocusSession", b =>
                 {
                     b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("Focus.Domain.Entities.Habit", b =>
+                {
+                    b.Navigation("CheckIns");
                 });
 
             modelBuilder.Entity("Focus.Domain.Entities.TaskItem", b =>

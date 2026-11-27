@@ -9,6 +9,7 @@ import { MOODS, StatsInsights, StatsSummary, moodEmoji } from '../../core/models
 import { PlannerStore } from '../../core/planner.store';
 import { ThemeService } from '../../core/theme.service';
 import { ProgressRing } from '../../shared/progress-ring';
+import { mix, tooltipStyle } from './chart-helpers';
 
 type Range = 7 | 30;
 
@@ -93,6 +94,36 @@ export class StatsPage {
       series: [bar('Planned', c.planned, s.days.map((d) => d.planned)), bar('Done', c.done, s.days.map((d) => d.done))],
     };
   });
+
+  protected readonly habitPercent = computed(() => Math.round((this.summary()?.totals.habitRate ?? 0) * 100));
+
+  /** Habits due vs done per day; separate from the tasks chart on purpose. */
+  protected readonly habitChart = computed<EChartsCoreOption | null>(() => {
+    const s = this.summary();
+    if (!s) return null;
+    const c = this.colors();
+    const bar = (name: string, color: string, data: number[]) => ({
+      name,
+      type: 'bar',
+      data,
+      barMaxWidth: 18,
+      barGap: '-100%', // done sits on top of due, like a progress bar
+      itemStyle: { color, borderRadius: [4, 4, 0, 0] },
+      animationDelay: (i: number) => i * 30,
+    });
+    return {
+      grid: { left: 8, right: 8, top: 36, bottom: 4, containLabel: true },
+      legend: { top: 0, left: 0, icon: 'roundRect', itemWidth: 12, itemHeight: 12, textStyle: { color: c.text, fontWeight: 600 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: c.grid } }, ...tooltipStyle(this.theme.isDark()) },
+      xAxis: { type: 'category', data: s.days.map((d) => axisLabel(d.date, s.days.length)), axisTick: { show: false }, axisLine: { lineStyle: { color: c.grid } }, axisLabel: { color: c.text } },
+      yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: c.grid } }, axisLabel: { color: c.text } },
+      series: [bar('Due', c.empty, s.days.map((d) => d.habitsDue)), bar('Done', c.done, s.days.map((d) => d.habitsDone))],
+    };
+  });
+
+  protected pct(rate: number): number {
+    return Math.round(rate * 100);
+  }
 
   protected readonly focusChart = computed<EChartsCoreOption | null>(() => {
     const s = this.summary();
@@ -228,22 +259,4 @@ function truncate(text: string, max: number): string {
 function axisLabel(iso: string, count: number): string {
   const d = parseIsoDate(iso);
   return count <= 7 ? d.toLocaleDateString('en-US', { weekday: 'short' }) : `${d.getDate()}.${d.getMonth() + 1}.`;
-}
-
-function tooltipStyle(dark: boolean) {
-  return {
-    backgroundColor: dark ? 'rgba(44,37,84,0.95)' : 'rgba(255,255,255,0.96)',
-    borderColor: 'transparent',
-    textStyle: { color: dark ? '#f2eefe' : '#2d2340' },
-    extraCssText: 'border-radius:12px;box-shadow:0 10px 30px -12px rgba(60,30,90,.45);',
-  };
-}
-
-/** Mixes two #rrggbb colours: t = 0 gives `a`, t = 1 gives `b`. Falls back to `a` for other colour formats. */
-function mix(a: string, b: string, t: number): string {
-  const parse = (hex: string) => (/^#[0-9a-f]{6}$/i.test(hex) ? [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) : null);
-  const ca = parse(a);
-  const cb = parse(b);
-  if (!ca || !cb) return a;
-  return '#' + ca.map((v, i) => Math.round(v + (cb[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }

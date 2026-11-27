@@ -65,7 +65,8 @@ api.MapAuthEndpoints()
     .MapTemplateEndpoints()
     .MapTagEndpoints()
     .MapFocusSessionEndpoints()
-    .MapStatsEndpoints();
+    .MapStatsEndpoints()
+    .MapHabitEndpoints();
 api.Map("{**rest}", () => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found"))
     .ExcludeFromDescription();
 

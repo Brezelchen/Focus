@@ -1,8 +1,10 @@
 using Focus.Application.Common;
 using Focus.Application.Days;
+using Focus.Application.Habits;
 using Focus.Application.Tags;
 using Focus.Application.Tasks;
 using Focus.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Focus.UnitTests;
 
@@ -53,6 +55,29 @@ public sealed class UserIsolationTests : IDisposable
         Assert.Equal("Alice's day", (await _app.Days.GetDayAsync(Today)).Note?.Reflection);
         Assert.DoesNotContain(await _app.Tags.GetAllAsync(), t => t.Id == bobTag.Id);
         Assert.Single((await _app.Days.GetDayAsync(Today)).Tasks);
+    }
+
+    [Fact]
+    public async Task Habits_are_private()
+    {
+        var alice = _app.User.UserId!.Value;
+        var habit = await _app.Habits.CreateAsync(new SaveHabitRequest("Alice's walk"));
+        await _app.Habits.SetCheckInAsync(habit.Id, Today, new SetCheckInRequest(1));
+        await _app.Habits.SaveMonthNoteAsync(Today, new SaveMonthNoteRequest("Calm", null));
+
+        SwitchTo(_app.AddUser("Bob"));
+
+        Assert.Empty(await _app.Habits.ListAsync(Today));
+        Assert.Empty((await _app.Habits.GetDayAsync(Today)).Items);
+        Assert.Empty((await _app.Habits.GetMonthAsync(Today)).Rows);
+        Assert.Null((await _app.Habits.GetMonthAsync(Today)).Note);
+        Assert.Equal(0, await _app.Db.HabitCheckIns.CountAsync());
+        await Assert.ThrowsAsync<NotFoundException>(() => _app.Habits.SetCheckInAsync(habit.Id, Today, new SetCheckInRequest(0)));
+        await Assert.ThrowsAsync<NotFoundException>(() => _app.Habits.DeleteAsync(habit.Id));
+        await Assert.ThrowsAsync<ValidationException>(() => _app.Habits.ReorderAsync(new ReorderHabitsRequest([habit.Id])));
+
+        SwitchTo(alice);
+        Assert.True(Assert.Single((await _app.Habits.GetDayAsync(Today)).Items).Done);
     }
 
     [Fact]

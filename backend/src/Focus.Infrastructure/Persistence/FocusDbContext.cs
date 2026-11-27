@@ -21,6 +21,9 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options, ICu
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<DayNote> DayNotes => Set<DayNote>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Habit> Habits => Set<Habit>();
+    public DbSet<HabitCheckIn> HabitCheckIns => Set<HabitCheckIn>();
+    public DbSet<HabitMonthNote> HabitMonthNotes => Set<HabitMonthNote>();
 
     /// <summary>The signed-in user's id, or -1 (matches nothing) when nobody is signed in.</summary>
     private int CurrentUserId => currentUser?.UserId ?? -1;
@@ -64,10 +67,13 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options, ICu
         OwnedByUser<Tag>(model);
         OwnedByUser<FocusSession>(model);
         OwnedByUser<DayNote>(model);
+        OwnedByUser<Habit>(model);
+        OwnedByUser<HabitMonthNote>(model);
         // Child rows are only reachable through their (filtered) parent.
         model.Entity<DayPlanEntry>().HasQueryFilter(p => p.TaskItem.UserId == CurrentUserId);
         model.Entity<Subtask>().HasQueryFilter(s => s.TaskItem.UserId == CurrentUserId);
         model.Entity<FocusSessionTask>().HasQueryFilter(t => t.FocusSession.UserId == CurrentUserId);
+        model.Entity<HabitCheckIn>().HasQueryFilter(c => c.Habit.UserId == CurrentUserId);
 
         model.Entity<Tag>(e =>
         {
@@ -113,6 +119,27 @@ public sealed class FocusDbContext(DbContextOptions<FocusDbContext> options, ICu
         {
             e.HasIndex(n => new { n.UserId, n.Date }).IsUnique();
             e.Property(n => n.Reflection).HasMaxLength(DayNote.ReflectionMaxLength);
+        });
+
+        model.Entity<Habit>(e =>
+        {
+            e.Property(h => h.Title).HasMaxLength(Habit.TitleMaxLength).IsRequired();
+            e.Property(h => h.Icon).HasMaxLength(16).IsRequired();
+            e.Property(h => h.Unit).HasMaxLength(Habit.UnitMaxLength);
+            e.HasIndex(h => new { h.UserId, h.Month, h.SortOrder });
+        });
+
+        model.Entity<HabitCheckIn>(e =>
+        {
+            e.HasOne(c => c.Habit).WithMany(h => h.CheckIns).HasForeignKey(c => c.HabitId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.HabitId, c.Date }).IsUnique();
+        });
+
+        model.Entity<HabitMonthNote>(e =>
+        {
+            e.Property(n => n.Word).HasMaxLength(HabitMonthNote.WordMaxLength);
+            e.Property(n => n.Emoji).HasMaxLength(16);
+            e.HasIndex(n => new { n.UserId, n.Month }).IsUnique();
         });
 
         model.Entity<FocusSession>(e =>

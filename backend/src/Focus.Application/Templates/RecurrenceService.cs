@@ -75,24 +75,7 @@ public sealed class RecurrenceService(IFocusDbContext db, IClock clock, TaskServ
             return;
         }
 
-        if (!Enum.IsDefined(input.Frequency)) throw new ValidationException("Unknown repeat frequency.");
-        if (input.Interval is < 1 or > Recurrence.MaxInterval)
-            throw new ValidationException($"Repeat every 1 to {Recurrence.MaxInterval}.");
-
-        var start = input.StartDate ?? defaultStart;
-        var weekdays = 0;
-        int? monthDay = null;
-        switch (input.Frequency)
-        {
-            case RepeatFrequency.Weekly:
-                if (input.Weekdays?.Any(d => !Enum.IsDefined(d)) == true) throw new ValidationException("Unknown weekday.");
-                weekdays = Recurrence.ToMask(input.Weekdays is { Count: > 0 } days ? days : [start.DayOfWeek]);
-                break;
-            case RepeatFrequency.Monthly:
-                monthDay = input.MonthDay ?? start.Day;
-                if (monthDay is < 1 or > 31) throw new ValidationException("The day of the month must be between 1 and 31.");
-                break;
-        }
+        var (_, _, weekdays, monthDay, start) = RecurrenceRules.Normalize(input, defaultStart);
 
         var changed = template.RepeatFrequency != input.Frequency
             || template.RepeatInterval != input.Interval

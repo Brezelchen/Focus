@@ -124,6 +124,44 @@ public sealed class ApiTests(FocusApiFactory factory) : IClassFixture<FocusApiFa
         Assert.Null((await cleared.Content.ReadFromJsonAsync<RepeatingTask>(Json))!.Repeat);
     }
 
+    private sealed record HabitDto(int Id, string Title, DateOnly? Month, int? Target, string? Unit, string Kind, RepeatDto Repeat);
+    private sealed record HabitDayItem(HabitDto Habit, int Count, bool Skipped, bool Done);
+    private sealed record HabitDay(DateOnly Date, List<HabitDayItem> Items, int Due, int Done);
+    private sealed record HabitCell(DateOnly Date, string State, int Count);
+    private sealed record HabitRow(HabitDto Habit, List<HabitCell> Cells, int CurrentStreak);
+    private sealed record HabitMonth(DateOnly Month, List<HabitRow> Rows);
+
+    [Fact]
+    public async Task Habit_endpoints_round_trip()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var client = await Client(today.ToString("yyyy-MM-dd"));
+
+        var created = await client.PostAsJsonAsync("/api/habits", new { title = "Water", target = 8, unit = "glasses" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var habit = (await created.Content.ReadFromJsonAsync<HabitDto>(Json))!;
+        Assert.Equal(("daily", "build"), (habit.Repeat.Frequency, habit.Kind));
+
+        var checkedIn = await client.PutAsJsonAsync($"/api/habits/{habit.Id}/check-ins/{today:yyyy-MM-dd}", new { count = 8 });
+        checkedIn.EnsureSuccessStatusCode();
+        Assert.True((await checkedIn.Content.ReadFromJsonAsync<HabitDayItem>(Json))!.Done);
+
+        var day = await client.GetFromJsonAsync<HabitDay>($"/api/habits/day/{today:yyyy-MM-dd}", Json);
+        Assert.Equal((1, 1), (day!.Due, day.Done));
+
+        var month = await client.GetFromJsonAsync<HabitMonth>($"/api/habits/month/{today:yyyy-MM}", Json);
+        var row = Assert.Single(month!.Rows);
+        Assert.Equal("done", row.Cells[today.Day - 1].State);
+        Assert.Equal(1, row.CurrentStreak);
+
+        var badMonth = await client.GetAsync("/api/habits/month/december");
+        Assert.Equal(HttpStatusCode.BadRequest, badMonth.StatusCode);
+        var future = await client.PutAsJsonAsync($"/api/habits/{habit.Id}/check-ins/{today.AddDays(1):yyyy-MM-dd}", new { count = 1 });
+        Assert.Equal(HttpStatusCode.BadRequest, future.StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/habits/{habit.Id}")).StatusCode);
+    }
+
     [Fact]
     public async Task Errors_are_problem_details()
     {

@@ -1,5 +1,6 @@
 using Focus.Application.Days;
 using Focus.Application.FocusSessions;
+using Focus.Application.Habits;
 using Focus.Application.Stats;
 using Focus.Application.Tags;
 using Focus.Application.Tasks;
@@ -17,5 +18,6 @@ public static class DependencyInjection
         .AddScoped<TemplateService>()
         .AddScoped<RecurrenceService>()
         .AddScoped<FocusSessionService>()
-        .AddScoped<StatsService>();
+        .AddScoped<StatsService>()
+        .AddScoped<HabitService>();
 }

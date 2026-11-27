@@ -1,6 +1,7 @@
 using Focus.Application.Abstractions;
 using Focus.Application.Common;
 using Focus.Application.Days;
+using Focus.Application.Habits;
 using Focus.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,9 +9,18 @@ namespace Focus.Application.Stats;
 
 /// <param name="Mood">Mood from the end-of-day reflection, if any.</param>
 /// <param name="Reflection">The reflection's one-line note, if any.</param>
-public sealed record DayStat(DateOnly Date, int Planned, int Done, int FocusMinutes, Mood? Mood = null, string? Reflection = null);
+/// <param name="HabitsDue">Habits scheduled (and not skipped) that day. Habits never count towards Planned/Done.</param>
+public sealed record DayStat(
+    DateOnly Date, int Planned, int Done, int FocusMinutes, Mood? Mood = null, string? Reflection = null, int HabitsDue = 0, int HabitsDone = 0);
 
-public sealed record StatsTotals(int Planned, int Done, double CompletionRate, int FocusMinutes, int Sessions);
+/// <param name="HabitRate">Habits done / due over the range; 0 when none were due.</param>
+public sealed record StatsTotals(
+    int Planned, int Done, double CompletionRate, int FocusMinutes, int Sessions, int HabitsDue = 0, int HabitsDone = 0, double HabitRate = 0);
+
+public sealed record HabitStreakDto(int HabitId, string Title, string Icon, int Current, int Best);
+
+/// <summary>"On days you did X, you felt good N% of the time vs M% otherwise." Good = a mood of Good or Great.</summary>
+public sealed record HabitMoodInsight(int HabitId, string Title, string Icon, double GoodRateWith, double GoodRateWithout, int DaysWith, int DaysWithout);
 
 /// <param name="Days">One entry per calendar day in the range (days without activity included, with zeros).</param>
 /// <param name="Threshold">Completion rate a day needs to count towards a streak.</param>
@@ -32,7 +42,9 @@ public sealed record StatsInsights(
     int TotalDone,
     int TotalFocusMinutes,
     int SessionsCompleted,
-    int SessionsEndedEarly);
+    int SessionsEndedEarly,
+    IReadOnlyList<HabitStreakDto>? HabitStreaks = null,
+    IReadOnlyList<HabitMoodInsight>? HabitMoods = null);
 
 public sealed class StatsService(IFocusDbContext db, IClock clock)
 {
@@ -60,6 +72,10 @@ public sealed class StatsService(IFocusDbContext db, IClock clock)
             .Where(n => n.Date >= start && n.Date <= end)
             .ToDictionaryAsync(n => n.Date, ct);
 
+        var habitEnd = end < clock.Today ? end : clock.Today;
+        var habits = await HabitLedger.HabitsForRangeAsync(db, start, habitEnd, ct);
+        var ledger = await HabitLedger.LoadAsync(db, habits, start, habitEnd, ct);
+
         var byDate = allDays.ToDictionary(d => d.Date);
         var days = new List<DayStat>();
         for (var d = start; d <= end; d = d.AddDays(1))
@@ -67,17 +83,23 @@ public sealed class StatsService(IFocusDbContext db, IClock clock)
             byDate.TryGetValue(d, out var counts);
             focus.TryGetValue(d, out var f);
             notes.TryGetValue(d, out var note);
-            days.Add(new DayStat(d, counts?.Planned ?? 0, counts?.Done ?? 0, (f?.Seconds ?? 0) / 60, note?.Mood, note?.Reflection));
+            var (habitsDue, habitsDone) = d <= habitEnd ? ledger.Totals(d) : (0, 0);
+            days.Add(new DayStat(d, counts?.Planned ?? 0, counts?.Done ?? 0, (f?.Seconds ?? 0) / 60, note?.Mood, note?.Reflection, habitsDue, habitsDone));
         }
 
         var planned = days.Sum(d => d.Planned);
         var done = days.Sum(d => d.Done);
+        var due = days.Sum(d => d.HabitsDue);
+        var habitsDoneTotal = days.Sum(d => d.HabitsDone);
         var totals = new StatsTotals(
             planned,
             done,
             planned == 0 ? 0 : Math.Round((double)done / planned, 3),
             focus.Values.Sum(f => f.Seconds) / 60,
-            focus.Values.Sum(f => f.Count));
+            focus.Values.Sum(f => f.Count),
+            due,
+            habitsDoneTotal,
+            due == 0 ? 0 : Math.Round((double)habitsDoneTotal / due, 3));
 
         var (current, best) = StreakCalculator.Compute(allDays, clock.Today, goal);
         return new StatsSummary(start, end, days, totals, current, best, goal);
@@ -116,6 +138,7 @@ public sealed class StatsService(IFocusDbContext db, IClock clock)
             .ToListAsync(ct);
 
         var totalDone = await db.DayPlanEntries.CountAsync(e => e.Outcome == PlanOutcome.Completed, ct);
+        var (habitStreaks, habitMoods) = await HabitInsightsAsync(ct);
 
         return new StatsInsights(
             topTemplates,
@@ -124,7 +147,58 @@ public sealed class StatsService(IFocusDbContext db, IClock clock)
             totalDone,
             sessions.Sum(s => s.Seconds) / 60,
             sessions.FirstOrDefault(s => s.Status == FocusSessionStatus.Completed)?.Count ?? 0,
-            sessions.FirstOrDefault(s => s.Status == FocusSessionStatus.EndedEarly)?.Count ?? 0);
+            sessions.FirstOrDefault(s => s.Status == FocusSessionStatus.EndedEarly)?.Count ?? 0,
+            habitStreaks,
+            habitMoods);
+    }
+
+    /// <summary>Minimum reflected days on each side (did / didn't do the habit) before a mood insight is shown.</summary>
+    public const int MoodInsightMinDays = 5;
+
+    private async Task<(List<HabitStreakDto>, List<HabitMoodInsight>)> HabitInsightsAsync(CancellationToken ct)
+    {
+        var today = clock.Today;
+        var from = today.AddDays(-(MaxRangeDays - 1));
+        var habits = await HabitLedger.HabitsForRangeAsync(db, from, today, ct);
+        if (habits.Count == 0) return ([], []);
+        var ledger = await HabitLedger.LoadAsync(db, habits, from, today, ct);
+
+        // Streaks of the habits that still apply today.
+        var streaks = habits
+            .Where(h => h.ArchivedAt is null && (h.Month is null || (h.Month.Value.Year == today.Year && h.Month.Value.Month == today.Month)))
+            .Select(h => (Habit: h, Streak: ledger.Streak(h, from, today)))
+            .Where(x => x.Streak.Best > 0)
+            .OrderByDescending(x => x.Streak.Current).ThenByDescending(x => x.Streak.Best)
+            .Take(5)
+            .Select(x => new HabitStreakDto(x.Habit.Id, x.Habit.Title, x.Habit.Icon, x.Streak.Current, x.Streak.Best))
+            .ToList();
+
+        // Mood vs habit, over past days that have a mood.
+        var moods = await db.DayNotes.AsNoTracking()
+            .Where(n => n.Date >= from && n.Date < today && n.Mood != null)
+            .Select(n => new { n.Date, n.Mood })
+            .ToListAsync(ct);
+
+        var insights = new List<HabitMoodInsight>();
+        foreach (var habit in habits)
+        {
+            int with = 0, withGood = 0, without = 0, withoutGood = 0;
+            foreach (var m in moods)
+            {
+                var day = ledger.On(habit, m.Date);
+                if (!day.Due) continue;
+                var good = m.Mood >= Mood.Good;
+                if (day.Done) { with++; if (good) withGood++; }
+                else { without++; if (good) withoutGood++; }
+            }
+            if (with < MoodInsightMinDays || without < MoodInsightMinDays) continue;
+            var rateWith = Math.Round((double)withGood / with, 3);
+            var rateWithout = Math.Round((double)withoutGood / without, 3);
+            if (rateWith - rateWithout >= 0.15)
+                insights.Add(new HabitMoodInsight(habit.Id, habit.Title, habit.Icon, rateWith, rateWithout, with, without));
+        }
+
+        return (streaks, insights.OrderByDescending(i => i.GoodRateWith - i.GoodRateWithout).Take(3).ToList());
     }
 
     private async Task<List<DaySummary>> PlanCountsAsync(DateOnly? from, DateOnly? to, CancellationToken ct)

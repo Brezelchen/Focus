@@ -170,13 +170,25 @@ export interface DayStat {
   focusMinutes: number;
   mood: Mood | null;
   reflection: string | null;
+  /** Habits scheduled (not skipped) that day. Never part of planned/done. */
+  habitsDue: number;
+  habitsDone: number;
 }
 
 export interface StatsSummary {
   from: IsoDate;
   to: IsoDate;
   days: DayStat[];
-  totals: { planned: number; done: number; completionRate: number; focusMinutes: number; sessions: number };
+  totals: {
+    planned: number;
+    done: number;
+    completionRate: number;
+    focusMinutes: number;
+    sessions: number;
+    habitsDue: number;
+    habitsDone: number;
+    habitRate: number;
+  };
   currentStreak: number;
   bestStreak: number;
   threshold: number;
@@ -190,4 +202,118 @@ export interface StatsInsights {
   totalFocusMinutes: number;
   sessionsCompleted: number;
   sessionsEndedEarly: number;
+  habitStreaks: HabitStreak[];
+  habitMoods: HabitMoodInsight[];
+}
+
+// ---- Habits ---------------------------------------------------------------------------------
+
+export type HabitKind = 'build' | 'avoid';
+export type HabitTimeOfDay = 'anytime' | 'morning' | 'evening';
+
+/** A habit: ticked (or counted) on the days its repeat rule matches. Separate from tasks. */
+export interface Habit {
+  id: number;
+  title: string;
+  icon: string;
+  /** null = the base list (every month); otherwise the 1st of the only month it belongs to. */
+  month: IsoDate | null;
+  repeat: Recurrence;
+  /** null = a simple tick; otherwise the count to reach (or, for avoid habits, the limit). */
+  target: number | null;
+  unit: string | null;
+  kind: HabitKind;
+  timeOfDay: HabitTimeOfDay;
+  /** The count is filled from the day's focus minutes. */
+  countsFocusMinutes: boolean;
+  sortOrder: number;
+  /** First day the habit no longer applies, if archived. */
+  archivedAt: IsoDate | null;
+}
+
+export interface HabitInput {
+  title: string;
+  icon: string | null;
+  month: IsoDate | null;
+  repeat: RecurrenceInput | null;
+  target: number | null;
+  unit: string | null;
+  kind: HabitKind;
+  timeOfDay: HabitTimeOfDay;
+  countsFocusMinutes: boolean;
+}
+
+export interface HabitDayItem {
+  habit: Habit;
+  count: number;
+  skipped: boolean;
+  done: boolean;
+  /** Due yesterday and not done: today is the "never miss twice" day. */
+  missedYesterday: boolean;
+}
+
+export interface HabitMonthNote {
+  month: IsoDate;
+  word: string | null;
+  emoji: string | null;
+}
+
+export interface HabitDay {
+  date: IsoDate;
+  /** Habits scheduled that day (skipped included), base list first. */
+  items: HabitDayItem[];
+  /** Scheduled and not skipped. */
+  due: number;
+  done: number;
+  monthNote: HabitMonthNote | null;
+}
+
+export type HabitCellState = 'notDue' | 'open' | 'partial' | 'done' | 'skipped' | 'future' | 'missed';
+
+export interface HabitCell {
+  date: IsoDate;
+  state: HabitCellState;
+  count: number;
+}
+
+export interface HabitRow {
+  habit: Habit;
+  cells: HabitCell[];
+  /** Done / due up to today; null when nothing was due yet. */
+  rate: number | null;
+  currentStreak: number;
+  bestStreak: number;
+  /** Times done (tick habits) or the summed count. */
+  total: number;
+}
+
+export interface HabitMonth {
+  month: IsoDate;
+  note: HabitMonthNote | null;
+  rows: HabitRow[];
+}
+
+export interface HabitHistory {
+  row: HabitRow;
+  from: IsoDate;
+  to: IsoDate;
+}
+
+export interface HabitStreak {
+  habitId: number;
+  title: string;
+  icon: string;
+  current: number;
+  best: number;
+}
+
+/** "On days you did X, you felt good N% of the time vs M% otherwise." */
+export interface HabitMoodInsight {
+  habitId: number;
+  title: string;
+  icon: string;
+  goodRateWith: number;
+  goodRateWithout: number;
+  daysWith: number;
+  daysWithout: number;
 }

@@ -1,14 +1,20 @@
 import { DialogRef } from '@angular/cdk/dialog';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { Api } from '../../core/api';
 import { greeting, relativeDayName } from '../../core/dates';
+import { HabitStore } from '../../core/habit.store';
+import { addMonths, markMonthReviewDone, monthOf, monthReviewDone } from '../../core/habits';
 import { PlannerStore } from '../../core/planner.store';
 import { ProgressRing } from '../../shared/progress-ring';
 import { Pup } from '../../shared/pup';
+import { MonthReview } from '../habits/month-review';
+import { HabitPills } from './habit-pills';
 
 /** First open of the day: how yesterday went, and a one-click way to bring unfinished tasks back. */
 @Component({
   selector: 'app-morning-ritual',
-  imports: [ProgressRing, Pup],
+  imports: [ProgressRing, Pup, HabitPills, MonthReview],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.ritual(); as r) {
@@ -63,6 +69,26 @@ import { Pup } from '../../shared/pup';
           </ul>
         }
 
+        @if (missedHabits().length) {
+          <div class="habits">
+            <p class="muted small">🌱 Habits {{ habitDayName() }}: tick any you did but didn't log.</p>
+            <app-habit-pills [items]="missedHabits()" [date]="habitsYesterday()!.date" [compact]="true" />
+          </div>
+        }
+
+        @if (morningHabits().length) {
+          <div class="habits">
+            <p class="muted small">🌅 This morning</p>
+            <app-habit-pills [items]="morningHabits()" [date]="store.today()" [compact]="true" />
+          </div>
+        }
+
+        @if (showMonthReview()) {
+          <div class="habits review">
+            <app-month-review [month]="thisMonth" (finished)="finishMonthReview()" />
+          </div>
+        }
+
         <div class="actions">
           @if (r.returnedTasks.length > 1 && pending().length) {
             <button class="btn btn-ghost" type="button" (click)="bringAllBack()">Bring all back</button>
@@ -85,6 +111,10 @@ import { Pup } from '../../shared/pup';
     .row-actions { display: flex; flex-shrink: 0; gap: 4px; }
     .small-btn { height: 32px; padding: 0 12px; font-size: 13px; }
     .actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .ritual { max-height: calc(100dvh - 32px); overflow: auto; }
+    .habits { margin-top: 16px; text-align: left; }
+    .habits .small { margin: 0 0 8px; }
+    .review { padding-top: 14px; border-top: 1px solid var(--surface-border); }
   `,
 })
 export class MorningRitual {
@@ -92,6 +122,30 @@ export class MorningRitual {
   private readonly ref = inject(DialogRef);
 
   protected readonly hello = greeting();
+  private readonly habits = inject(HabitStore);
+  private readonly api = inject(Api);
+
+  protected readonly habitsYesterday = this.habits.yesterday;
+  /** Habits due yesterday and not done when the recap opened (ticked ones stay, so they can be unticked). */
+  private readonly missedIds = signal<Set<number> | null>(null);
+  protected readonly missedHabits = computed(() => {
+    const ids = this.missedIds();
+    return ids ? (this.habits.yesterday()?.items ?? []).filter((i) => ids.has(i.habit.id)) : [];
+  });
+  protected readonly habitDayName = computed(() => {
+    const d = this.habits.yesterday()?.date;
+    return d ? relativeDayName(d, this.store.today()).toLowerCase() : '';
+  });
+  protected readonly morningHabits = computed(() => {
+    const d = this.habits.day();
+    return d && d.date === this.store.today() ? d.items.filter((i) => i.habit.timeOfDay === 'morning') : [];
+  });
+
+  // ---- Month review: the first recap of a month whose own list is still empty ----
+  protected readonly thisMonth = monthOf(this.store.today());
+  private readonly monthReviewDue = signal(false);
+  protected readonly showMonthReview = computed(() => this.monthReviewDue());
+
   protected readonly broughtBack = signal(new Set<number>());
   /** Returned tasks the user marked as done on the previous day after all. */
   protected readonly markedDone = signal(new Set<number>());
@@ -130,6 +184,38 @@ export class MorningRitual {
     this.broughtBack.update((s) => new Set(s).add(taskId));
     if (!this.store.isToday()) await this.store.selectDate(this.store.today());
     await this.store.move(task, 'day', this.store.openTasks().length);
+  }
+
+  constructor() {
+    // Capture which of yesterday's habits were missed once they've loaded.
+    effect(() => {
+      const y = this.habits.yesterday();
+      if (!y || untracked(this.missedIds)) return;
+      this.missedIds.set(new Set(y.items.filter((i) => !i.done && !i.skipped).map((i) => i.habit.id)));
+    });
+    void this.checkMonthReview();
+  }
+
+  private async checkMonthReview(): Promise<void> {
+    if (monthReviewDone(this.thisMonth)) return;
+    try {
+      const [now, before] = await Promise.all([
+        firstValueFrom(this.api.habits(this.thisMonth)),
+        firstValueFrom(this.api.habits(addMonths(this.thisMonth, -1))),
+      ]);
+      const prev = addMonths(this.thisMonth, -1);
+      const ownNow = now.some((h) => h.month === this.thisMonth);
+      const ownBefore = before.some((h) => h.month === prev && !h.archivedAt);
+      this.monthReviewDue.set(!ownNow && ownBefore);
+    } catch {
+      /* the review is optional */
+    }
+  }
+
+  protected finishMonthReview(): void {
+    markMonthReviewDone(this.thisMonth);
+    this.monthReviewDue.set(false);
+    void this.habits.refresh();
   }
 
   protected async markDone(taskId: number): Promise<void> {

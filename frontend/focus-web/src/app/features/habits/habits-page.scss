@@ -1,0 +1,535 @@
+:host {
+  display: block;
+}
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  padding: 20px;
+  min-width: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  h2 {
+    font-size: 18px;
+    margin: 0;
+  }
+  .hint {
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.small {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.error {
+  padding: 12px 16px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ---- Header ---- */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  padding: 20px 24px;
+}
+
+.month-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+
+  h1 {
+    font-size: clamp(24px, 4vw, 34px);
+    margin: 0 4px;
+  }
+}
+
+.intention {
+  display: flex;
+  align-items: center;
+}
+
+.note-chip {
+  border: 0;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-grad);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 12px 24px -14px var(--accent-2);
+  transition: transform 0.2s var(--ease-spring);
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* While editing, the intention form gets its own row in the header. */
+.intention.editing {
+  flex-basis: 100%;
+}
+
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.emoji {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), background 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+  &.on {
+    background: var(--accent-grad);
+    border-color: transparent;
+    box-shadow: 0 8px 18px -10px var(--accent-2);
+  }
+}
+
+.emoji-custom {
+  width: 76px;
+  height: 38px;
+  border-radius: var(--radius-pill);
+  text-align: center;
+  font-size: 14px;
+
+  &.on {
+    font-size: 18px;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px var(--accent-2);
+  }
+}
+
+.word-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  .input {
+    flex: 1 1 220px;
+    max-width: 360px;
+    height: 38px;
+  }
+}
+
+/* ---- Empty state ---- */
+.empty {
+  text-align: center;
+
+  h2 {
+    font-size: 22px;
+  }
+  p {
+    max-width: 520px;
+    margin: 8px auto 16px;
+  }
+}
+
+.starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.starter {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), background 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    background: var(--surface-hover);
+  }
+}
+
+/* ---- Grid ---- */
+.grid-scroll {
+  --thumb: color-mix(in srgb, var(--accent-2) 30%, transparent);
+  --thumb-hover: color-mix(in srgb, var(--accent-2) 60%, transparent);
+  overflow-x: auto;
+  margin: 0 -8px;
+  padding: 0 8px 10px;
+  overscroll-behavior-x: contain;
+
+  /* A slim accent pill on a clear track (Chrome, Edge, Safari). */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 0 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--thumb);
+    border-radius: 999px;
+    border: 2px solid transparent; /* inset look */
+    background-clip: padding-box;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: var(--thumb-hover);
+  }
+  &::-webkit-scrollbar-thumb:active {
+    background-color: var(--accent-2);
+  }
+}
+
+/* Firefox has no pseudo-elements for this, only the standard properties. */
+@supports not selector(::-webkit-scrollbar) {
+  .grid-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--thumb) transparent;
+
+    &:hover {
+      scrollbar-color: var(--thumb-hover) transparent;
+    }
+  }
+}
+
+.grid {
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 12px;
+
+  th {
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    min-width: 26px;
+    line-height: 1.1;
+
+    small {
+      display: block;
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+    &.weekend small {
+      color: var(--accent-2);
+    }
+    &.today {
+      color: var(--text);
+    }
+  }
+
+  td {
+    padding: 0;
+    text-align: center;
+  }
+
+  td.today .cell,
+  th.today {
+    box-shadow: 0 0 0 2px var(--accent-2);
+    border-radius: 8px;
+  }
+}
+
+.habit-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left !important;
+  /* --surface-strong is see-through; the opaque page colour underneath hides the days scrolling by. */
+  background: linear-gradient(var(--surface-strong), var(--surface-strong)) var(--bg-1);
+  border-radius: 8px;
+  min-width: 150px;
+  max-width: 200px;
+}
+
+/* Header cell above the habit names: a plain label like "Rate", not an empty box. */
+.habit-col.head {
+  vertical-align: bottom;
+  padding: 0 6px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.habit-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+  .t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.stat-col {
+  min-width: 44px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cell {
+  --fill: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  transition: transform 0.15s var(--ease-spring), background 0.15s;
+
+  small {
+    font-size: 10px;
+  }
+  &:hover:not(:disabled) {
+    transform: scale(1.12);
+  }
+  &:disabled {
+    cursor: default;
+  }
+
+  &[data-state='notDue'] {
+    background: transparent;
+    border-color: transparent;
+    &::after {
+      content: '';
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-faint);
+      opacity: 0.5;
+    }
+  }
+  &[data-state='future'] {
+    background: transparent;
+    border-style: dashed;
+    opacity: 0.6;
+  }
+  &[data-state='done'] {
+    color: #fff;
+    background: var(--accent-grad);
+    border-color: transparent;
+  }
+  &[data-state='partial'] {
+    color: var(--text);
+    background: linear-gradient(to top, color-mix(in srgb, var(--accent-2) 45%, transparent) calc(var(--fill) * 100%), var(--surface) 0);
+  }
+  &[data-state='missed'] {
+    background: color-mix(in srgb, var(--tag-coral, #e0668c) 18%, transparent);
+    border-color: color-mix(in srgb, var(--tag-coral, #e0668c) 30%, transparent);
+    color: var(--danger);
+  }
+  &[data-state='skipped'] {
+    font-size: 13px;
+    background: var(--surface-hover);
+  }
+}
+
+/* ---- Lists ---- */
+.lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+
+  .archived {
+    grid-column: 1 / -1;
+  }
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.empty-row {
+  padding: 8px 4px;
+  font-size: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.habit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+
+  &.cdk-drag-preview {
+    background: var(--surface-strong);
+    box-shadow: var(--shadow-lift);
+  }
+  .ico {
+    font-size: 20px;
+  }
+  .info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border: 0;
+    background: none;
+    padding: 2px 4px;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 8px;
+
+    strong {
+      overflow-wrap: anywhere;
+    }
+    small {
+      font-size: 12px;
+      font-weight: 600;
+    }
+    &:hover {
+      background: var(--surface-hover);
+    }
+  }
+}
+
+.grip {
+  cursor: grab;
+  color: var(--text-faint);
+  user-select: none;
+  padding: 0 2px;
+}
+
+.cdk-drop-list-dragging .habit:not(.cdk-drag-placeholder) {
+  transition: transform 0.2s var(--ease-spring);
+}
+
+.toggle {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+/* When the grid scrolls sideways, the sticky name column must be solid: no gaps between its cells and no
+   padding at the scroll edge for days to peek through. */
+@media (max-width: 1100px) {
+  .grid-scroll {
+    margin: 0;
+    /* Room above and below for today's 2px ring: the scroll box clips anything outside it. */
+    padding: 3px 0 10px;
+  }
+  .grid {
+    border-spacing: 0;
+
+    th,
+    td {
+      padding: 1.5px;
+    }
+  }
+  .habit-col {
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .lists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .page {
+    gap: 14px;
+  }
+  .hero,
+  .card {
+    padding: 16px;
+  }
+  .habit-col {
+    min-width: 112px;
+    max-width: 130px;
+  }
+  .card-head .hint {
+    display: none;
+  }
+  .word-row .input {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .word-row .btn {
+    flex: 1;
+  }
+}

@@ -5,6 +5,8 @@ import { addDays, longDate, relativeDayName } from '../../core/dates';
 import { fuzzyScore } from '../../core/fuzzy';
 import { Task } from '../../core/models';
 import { PetService } from '../../core/pet.service';
+import { HabitStore } from '../../core/habit.store';
+import { progressLabel } from '../../core/habits';
 import { PlannerStore } from '../../core/planner.store';
 import { PwaService } from '../../core/pwa.service';
 import { parseQuickAdd } from '../../core/quick-add';
@@ -144,6 +146,7 @@ export class CommandPalette {
   private readonly pwa = inject(PwaService);
   private readonly toast = inject(ToastService);
   private readonly dialogs = inject(TaskDialogs);
+  private readonly habits = inject(HabitStore);
 
   private readonly input = viewChild.required<ElementRef<HTMLInputElement>>('input');
   private readonly list = viewChild.required<ElementRef<HTMLElement>>('list');
@@ -182,6 +185,10 @@ export class CommandPalette {
 
     const ranked: { item: PaletteItem; score: number }[] = [];
     for (const item of this.commands()) {
+      const score = fuzzyScore(q, `${item.label} ${item.keywords ?? ''}`);
+      if (score !== null) ranked.push({ item, score });
+    }
+    for (const item of this.habitItems()) {
       const score = fuzzyScore(q, `${item.label} ${item.keywords ?? ''}`);
       if (score !== null) ranked.push({ item, score });
     }
@@ -307,6 +314,7 @@ export class CommandPalette {
           s.reflectRequested.set(true);
         },
       },
+      { id: 'habits', icon: '🌱', label: 'Go to Habits', keywords: 'habit tracker month grid routine', run: () => void this.router.navigate(['/habits']) },
       { id: 'stats', icon: '📈', label: 'Go to Stats', keywords: 'progress charts streak heatmap', run: () => void this.router.navigate(['/stats']) },
       { id: 'theme', icon: '🌗', label: `Switch to ${themeNext} theme`, keywords: 'dark light mode appearance', run: () => this.theme.cycle() },
       ...PALETTES.filter((p) => p.id !== this.theme.palette()).map((p) => ({
@@ -334,6 +342,23 @@ export class CommandPalette {
   }
 
   /** With an empty query: the open tasks of today, so you can act on them right away. */
+  /** Today's habits that can be ticked or counted up from here (focus-minute habits fill themselves). */
+  private habitItems(): PaletteItem[] {
+    const day = this.habits.day();
+    const today = this.store.today();
+    if (!day || day.date !== today) return [];
+    return day.items
+      .filter((i) => !i.skipped && !i.habit.countsFocusMinutes && !(i.habit.target === null && i.done))
+      .map((i) => ({
+        id: `habit-${i.habit.id}`,
+        icon: i.habit.icon,
+        label: i.habit.target === null ? `Tick habit: ${i.habit.title}` : `Count habit: ${i.habit.title} (+1)`,
+        hint: i.habit.target === null ? undefined : progressLabel(i.habit, i.count),
+        keywords: 'habit done check',
+        run: () => this.habits.tap(i, today),
+      }));
+  }
+
   private todaysTasks(): PaletteItem[] {
     return (this.store.isToday() ? this.store.openTasks() : []).slice(0, 5).map((t) => this.taskItem(t, 'Today'));
   }

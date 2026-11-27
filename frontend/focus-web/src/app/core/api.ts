@@ -7,6 +7,13 @@ import {
   DayNote,
   FocusSession,
   FocusSessionStatus,
+  Habit,
+  HabitDay,
+  HabitDayItem,
+  HabitHistory,
+  HabitInput,
+  HabitMonth,
+  HabitMonthNote,
   IsoDate,
   Mood,
   RecurrenceInput,
@@ -114,6 +121,51 @@ export class Api {
   }
   finishSession(id: number, status: Exclude<FocusSessionStatus, 'running'>, actualSeconds: number): Observable<FocusSession> {
     return this.http.post<FocusSession>(`/api/focus-sessions/${id}/finish`, { status, actualSeconds });
+  }
+
+  // Habits
+  /** The base list, plus that month's habits when `month` (yyyy-MM-dd, any day of the month) is given. */
+  habits(month?: IsoDate): Observable<Habit[]> {
+    return this.http.get<Habit[]>('/api/habits', month ? { params: { month: month.slice(0, 7) } } : {});
+  }
+  createHabit(input: HabitInput): Observable<Habit> {
+    return this.http.post<Habit>('/api/habits', input);
+  }
+  updateHabit(id: number, input: HabitInput): Observable<Habit> {
+    return this.http.put<Habit>(`/api/habits/${id}`, input);
+  }
+  deleteHabit(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/habits/${id}`);
+  }
+  archiveHabit(id: number, archived: boolean): Observable<Habit> {
+    return this.http.post<Habit>(`/api/habits/${id}/${archived ? 'archive' : 'unarchive'}`, {});
+  }
+  reorderHabits(ids: number[]): Observable<void> {
+    return this.http.post<void>('/api/habits/reorder', { ids });
+  }
+  /** Carries month habits over (all, or `habitIds`); returns the target month's habits. */
+  copyHabitMonth(from: IsoDate, to: IsoDate, habitIds: number[] | null = null): Observable<Habit[]> {
+    return this.http.post<Habit[]>('/api/habits/copy-month', { from, to, habitIds });
+  }
+  habitDay(date: IsoDate): Observable<HabitDay> {
+    return this.http.get<HabitDay>(`/api/habits/day/${date}`);
+  }
+  /** Sets a day's count (0 clears it), or marks it as a rest day. */
+  checkIn(habitId: number, date: IsoDate, count: number, skipped = false): Observable<HabitDayItem> {
+    return this.http.put<HabitDayItem>(`/api/habits/${habitId}/check-ins/${date}`, { count, skipped });
+  }
+  habitMonth(month: IsoDate): Observable<HabitMonth> {
+    return this.http.get<HabitMonth>(`/api/habits/month/${month.slice(0, 7)}`);
+  }
+  habitHistory(habitId: number, from?: IsoDate, to?: IsoDate): Observable<HabitHistory> {
+    const params: Record<string, string> = {};
+    if (from) params['from'] = from;
+    if (to) params['to'] = to;
+    return this.http.get<HabitHistory>(`/api/habits/${habitId}/history`, { params });
+  }
+  /** Saves the month's intention; resolves to null when (empty and) deleted. */
+  saveHabitMonthNote(month: IsoDate, word: string | null, emoji: string | null): Observable<HabitMonthNote | null> {
+    return this.http.put<HabitMonthNote | null>(`/api/habits/month/${month.slice(0, 7)}/note`, { word, emoji });
   }
 
   // Stats

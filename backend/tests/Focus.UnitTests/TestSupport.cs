@@ -1,5 +1,6 @@
 using Focus.Application.Abstractions;
 using Focus.Application.Days;
+using Focus.Application.Habits;
 using Focus.Application.Stats;
 using Focus.Application.Tags;
 using Focus.Application.Tasks;
@@ -47,6 +48,7 @@ public sealed class TestApp : IDisposable
         Days = new DayService(Db, Clock, Recurrence);
         Templates = new TemplateService(Db, Clock, Tags, Tasks, Recurrence);
         Stats = new StatsService(Db, Clock);
+        Habits = new HabitService(Db, Clock);
     }
 
     public FakeClock Clock { get; } = new();
@@ -58,6 +60,7 @@ public sealed class TestApp : IDisposable
     public TemplateService Templates { get; }
     public RecurrenceService Recurrence { get; }
     public StatsService Stats { get; }
+    public HabitService Habits { get; }
 
     /// <summary>Creates another account and returns its id.</summary>
     public int AddUser(string name)

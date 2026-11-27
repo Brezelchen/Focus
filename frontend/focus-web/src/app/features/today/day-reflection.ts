@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import { HabitStore } from '../../core/habit.store';
 import { MOODS, Mood, moodEmoji } from '../../core/models';
 import { PlannerStore } from '../../core/planner.store';
+import { HabitPills } from './habit-pills';
 
 /** From this hour on, Today shows the reflection prompt open instead of as a small button. */
 const EVENING_HOUR = 17;
@@ -11,11 +13,18 @@ const EVENING_HOUR = 17;
  */
 @Component({
   selector: 'app-day-reflection',
+  imports: [HabitPills],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (editing()) {
       <form class="card glass" (submit)="$event.preventDefault(); save()" animate.enter="enter-fade-up">
         <h3>🌙 {{ store.isToday() ? 'How did today go?' : 'How was this day?' }}</h3>
+        @if (eveningHabits().length) {
+          <div class="evening">
+            <span class="muted label">Evening habits</span>
+            <app-habit-pills [items]="eveningHabits()" [date]="store.selectedDate()" [compact]="true" />
+          </div>
+        }
         <div class="moods" role="radiogroup" aria-label="Mood">
           @for (m of moods; track m.id) {
             <button
@@ -71,6 +80,8 @@ const EVENING_HOUR = 17;
   `,
   styles: `
     :host { display: block; margin-top: 18px; }
+    .evening { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .evening .label { font-size: 12px; font-weight: 700; }
     .card { padding: 16px 18px; border-radius: var(--radius-lg); }
     h3 { font-size: 17px; margin-bottom: 10px; }
     .moods { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -103,6 +114,14 @@ const EVENING_HOUR = 17;
 })
 export class DayReflection {
   protected readonly store = inject(PlannerStore);
+  private readonly habits = inject(HabitStore);
+
+  /** Evening habits of this day ("Sleep 8h", "No screens"), ticked as part of winding down. */
+  protected readonly eveningHabits = computed(() => {
+    const d = this.habits.day();
+    if (!d || d.date !== this.store.selectedDate() || this.store.isFuture()) return [];
+    return d.items.filter((i) => i.habit.timeOfDay === 'evening');
+  });
   private readonly textInput = viewChild<ElementRef<HTMLInputElement>>('text');
 
   protected readonly moods = MOODS;

@@ -13,12 +13,14 @@ import { Router } from '@angular/router';
 import { addDays, formatMinutes, greeting, longDate, relativeDayName } from '../../core/dates';
 import { describeRepeat, lowerFirst } from '../../core/recurrence';
 import { Subtask, Task, Template } from '../../core/models';
+import { HabitStore } from '../../core/habit.store';
 import { PetService } from '../../core/pet.service';
 import { PlannerStore } from '../../core/planner.store';
 import { ProgressRing } from '../../shared/progress-ring';
 import { Pup, PupMood } from '../../shared/pup';
 import { TaskAction, TaskCard } from '../../shared/task-card';
 import { DayReflection } from './day-reflection';
+import { HabitStrip } from './habit-strip';
 import { MorningRitual } from './morning-ritual';
 import { TaskDialogs } from './task-dialogs';
 
@@ -42,6 +44,7 @@ const NARROW = '(max-width: 560px)';
     ProgressRing,
     Pup,
     DayReflection,
+    HabitStrip,
   ],
   templateUrl: './today-page.html',
   styleUrl: './today-page.scss',
@@ -50,6 +53,7 @@ const NARROW = '(max-width: 560px)';
 })
 export class TodayPage {
   protected readonly store = inject(PlannerStore);
+  private readonly habits = inject(HabitStore);
   private readonly pet = inject(PetService);
   private readonly dialog = inject(Dialog);
   private readonly router = inject(Router);
@@ -105,15 +109,32 @@ export class TodayPage {
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
   });
 
+  /** True for a few seconds after every habit of the day got done: the pup gets a treat. */
+  protected readonly treat = signal(false);
+  private treatTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** All of the open day's habits done (and there were some). */
+  private readonly habitsAllDone = computed(() => {
+    const h = this.habits.day();
+    return !!h && h.date === this.store.selectedDate() && h.due > 0 && h.done === h.due;
+  });
+
   protected readonly pupMood = computed<PupMood>(() => {
+    if (this.treat()) return 'party';
     const d = this.store.day();
-    if (!d || d.planned === 0) return 'sleepy';
+    if (!d || d.planned === 0) return this.habitsAllDone() ? 'happy' : 'sleepy';
     if (d.done === d.planned) return 'party';
-    return d.done > 0 ? 'happy' : 'idle';
+    return d.done > 0 || this.habitsAllDone() ? 'happy' : 'idle';
   });
 
   protected readonly pupLine = computed(() => {
+    if (this.treat()) {
+      const done = (this.habits.day()?.items ?? []).filter((i) => i.done).map((i) => i.habit.title.toLowerCase());
+      const list = done.length <= 2 ? done.join(' and ') : `${done.slice(0, 2).join(', ')} and the rest`;
+      return `🦴 Treat! ${list.charAt(0).toUpperCase() + list.slice(1)} done. I'm so proud!`;
+    }
     const d = this.store.day();
+    if (this.store.isToday() && (!d || d.planned === 0) && this.habitsAllDone()) return 'All habits done today. Good human! 🐾';
     if (this.store.isPast()) return d?.planned ? `You finished ${d.done} of ${d.planned}.` : 'A quiet day.';
     if (!d || d.planned === 0) return 'Nothing planned yet. Drag something in from the backlog!';
     if (d.done === d.planned) return this.pet.kind() === 'cat' ? 'All done! Time for a cozy nap? 🐾' : 'All done! Time for a walk? 🐾';
@@ -125,7 +146,21 @@ export class TodayPage {
     const mq = matchMedia(NARROW);
     const onChange = (e: MediaQueryListEvent) => this.narrow.set(e.matches);
     mq.addEventListener('change', onChange);
-    inject(DestroyRef).onDestroy(() => mq.removeEventListener('change', onChange));
+    inject(DestroyRef).onDestroy(() => {
+      mq.removeEventListener('change', onChange);
+      clearTimeout(this.treatTimer);
+    });
+
+    // Every habit of the day done: the pup celebrates for a moment.
+    let seenTreats = this.habits.treats();
+    effect(() => {
+      const treats = this.habits.treats();
+      if (treats === seenTreats) return;
+      seenTreats = treats;
+      this.treat.set(true);
+      clearTimeout(this.treatTimer);
+      this.treatTimer = setTimeout(() => this.treat.set(false), 6000);
+    });
 
     // Open the morning ritual once data says so.
     effect(() => {

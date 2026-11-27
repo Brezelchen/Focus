@@ -19,6 +19,15 @@ export const routes: Routes = [
         loadComponent: () => import('./features/today/today-page').then((m) => m.TodayPage),
       },
       {
+        path: 'habits',
+        title: 'Habits · Focus',
+        // The year-in-pixels view uses the same lazily loaded ECharts setup as Stats.
+        providers: [
+          provideEchartsCore({ echarts: () => import('./features/stats/echarts-setup') }),
+        ],
+        loadComponent: () => import('./features/habits/habits-page').then((m) => m.HabitsPage),
+      },
+      {
         path: 'focus',
         title: 'Focus mode · Focus',
         loadComponent: () => import('./features/focus-mode/focus-page').then((m) => m.FocusPage),

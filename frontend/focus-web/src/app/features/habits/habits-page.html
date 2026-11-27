@@ -1,0 +1,227 @@
+<div class="page">
+  <!-- ===== Header: month switcher + intention ===== -->
+  <header class="hero glass">
+    <div class="month-switch">
+      <button class="icon-btn" type="button" (click)="shiftMonth(-1)" aria-label="Previous month">‹</button>
+      <h1><span class="gradient-text">{{ title() }}</span></h1>
+      <button class="icon-btn" type="button" (click)="shiftMonth(1)" aria-label="Next month">›</button>
+      @if (!isCurrent()) {
+        <button class="btn btn-ghost" type="button" (click)="thisMonth()" animate.enter="enter-fade-up">This month</button>
+      }
+    </div>
+
+    <div class="intention" [class.editing]="editingNote()">
+      @if (editingNote()) {
+        <form class="note-form" (submit)="$event.preventDefault(); saveNote(word.value, noteEmoji())">
+          <div class="emoji-row" role="radiogroup" aria-label="Emoji for the intention">
+            @for (e of intentionEmojis; track e) {
+              <button
+                type="button"
+                class="emoji"
+                role="radio"
+                [class.on]="noteEmoji() === e"
+                [attr.aria-checked]="noteEmoji() === e"
+                (click)="noteEmoji.set(noteEmoji() === e ? null : e)"
+              >{{ e }}</button>
+            }
+            <input
+              class="input emoji-custom"
+              [class.on]="customEmoji()"
+              maxlength="8"
+              [value]="customEmoji() ? noteEmoji() : ''"
+              (input)="setCustomEmoji($event)"
+              placeholder="other"
+              aria-label="Another emoji"
+              title="Type or paste any emoji (Windows: Win + .)"
+            />
+          </div>
+          <div class="word-row">
+            <input #word class="input" maxlength="40" [value]="grid()?.note?.word ?? ''" placeholder="One word for {{ name() }}, e.g. Calm" aria-label="Intention" cdkFocusInitial />
+            <button class="btn btn-primary" type="submit">Save</button>
+            <button class="btn btn-ghost" type="button" (click)="editingNote.set(false)">Cancel</button>
+          </div>
+        </form>
+      } @else if (grid()?.note; as note) {
+        <button class="note-chip" type="button" (click)="editNote()" title="Change {{ name() }}'s intention">
+          <span aria-hidden="true">{{ note.emoji }}</span> {{ note.word }}
+        </button>
+      } @else {
+        <button class="btn btn-ghost small" type="button" (click)="editNote()">＋ Set an intention for {{ name() }}</button>
+      }
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="error glass">{{ error() }} <button class="btn btn-ghost small" type="button" (click)="load()">Retry</button></p>
+  }
+
+  <!-- ===== Month review (new month, no own habits yet) ===== -->
+  @if (showReview()) {
+    <section class="card glass" animate.enter="enter-fade-up">
+      <app-month-review [month]="month()" (finished)="finishReview()" />
+    </section>
+  }
+
+  @if (loaded() && !hasAny()) {
+    <!-- ===== Empty state ===== -->
+    <section class="card glass empty">
+      <h2>🌱 Start with a few small habits</h2>
+      <p class="muted">Habits are separate from your todos: tick them off each day and watch the streaks grow. Tap one to add it, or make your own.</p>
+      <div class="starters">
+        @for (s of starters; track s.title) {
+          <button type="button" class="starter" (click)="addStarter(s)">
+            <span aria-hidden="true">{{ s.icon }}</span> {{ s.title }}{{ s.target ? ' · ' + s.target + ' ' + (s.unit ?? '') : '' }}
+          </button>
+        }
+      </div>
+      <button class="btn btn-primary" type="button" (click)="add('base')">＋ New habit</button>
+    </section>
+  } @else if (grid(); as g) {
+    <!-- ===== Month grid ===== -->
+    <section class="card glass grid-card" aria-label="Month tracker">
+      <div class="card-head">
+        <h2>Tracker</h2>
+        <span class="muted hint">Click a day to tick it · right-click for counts and rest days</span>
+      </div>
+      @if (g.rows.length) {
+        <div class="grid-scroll" #scroller>
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="habit-col head" scope="col">Habit</th>
+                @for (d of days(); track d.date) {
+                  <th scope="col" [class.today]="d.date === today()" [class.weekend]="d.weekend">
+                    <small>{{ d.weekday }}</small>{{ d.day }}
+                  </th>
+                }
+                <th class="stat-col" scope="col">Rate</th>
+                <th class="stat-col" scope="col">🔥</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of g.rows; track row.habit.id) {
+                <tr>
+                  <th class="habit-col" scope="row">
+                    <button type="button" class="habit-name" (click)="openHistory(row.habit)" title="Show the year">
+                      <span aria-hidden="true">{{ row.habit.icon }}</span>
+                      <span class="t">{{ row.habit.title }}</span>
+                    </button>
+                  </th>
+                  @for (cell of row.cells; track cell.date) {
+                    <td [class.today]="cell.date === today()">
+                      <button
+                        type="button"
+                        class="cell"
+                        [attr.data-state]="cell.state"
+                        [class.avoid]="row.habit.kind === 'avoid'"
+                        [style.--fill]="fill(row, cell)"
+                        [disabled]="!canEdit(cell)"
+                        [attr.aria-label]="cellLabel(row, cell)"
+                        [title]="cellLabel(row, cell)"
+                        (click)="cellClick(row, cell)"
+                        (contextmenu)="$event.preventDefault(); cellClick(row, cell, true)"
+                      >
+                        @switch (cell.state) {
+                          @case ('done') { ✓ }
+                          @case ('skipped') { 😴 }
+                          @case ('partial') { <small>{{ cell.count }}</small> }
+                          @case ('missed') { @if (row.habit.target !== null && cell.count) { <small>{{ cell.count }}</small> } }
+                        }
+                      </button>
+                    </td>
+                  }
+                  <td class="stat-col">{{ percent(row.rate) }}</td>
+                  <td class="stat-col">{{ row.currentStreak }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="muted">Nothing scheduled in {{ name() }}.</p>
+      }
+    </section>
+
+    <!-- ===== Lists ===== -->
+    <section class="lists">
+      <div class="card glass list-card">
+        <div class="card-head">
+          <h2>🔁 Every month</h2>
+          <button class="btn btn-ghost small" type="button" (click)="add('base')">＋ Add</button>
+        </div>
+        <ul class="list" cdkDropList [cdkDropListData]="baseHabits()" (cdkDropListDropped)="reorder('base', $event)">
+          @for (h of baseHabits(); track h.id) {
+            <li class="habit" cdkDrag cdkDragLockAxis="y" cdkDragPreviewContainer="parent">
+              <span class="grip" cdkDragHandle aria-hidden="true" title="Drag to reorder">⠿</span>
+              <span class="ico" aria-hidden="true">{{ h.icon }}</span>
+              <button type="button" class="info" (click)="edit(h)">
+                <strong>{{ h.title }}</strong>
+                <small class="muted">{{ meta(h) }}</small>
+              </button>
+              <button class="icon-btn more" type="button" [cdkMenuTriggerFor]="menu" [cdkMenuTriggerData]="{ $implicit: h }" [attr.aria-label]="'Actions for ' + h.title">⋯</button>
+            </li>
+          } @empty {
+            <li class="muted empty-row">Habits here apply every month.</li>
+          }
+        </ul>
+      </div>
+
+      <div class="card glass list-card">
+        <div class="card-head">
+          <h2>🗓️ Only in {{ name() }}</h2>
+          <button class="btn btn-ghost small" type="button" (click)="add('month')">＋ Add</button>
+        </div>
+        <ul class="list" cdkDropList [cdkDropListData]="monthHabits()" (cdkDropListDropped)="reorder('month', $event)">
+          @for (h of monthHabits(); track h.id) {
+            <li class="habit" cdkDrag cdkDragLockAxis="y" cdkDragPreviewContainer="parent">
+              <span class="grip" cdkDragHandle aria-hidden="true" title="Drag to reorder">⠿</span>
+              <span class="ico" aria-hidden="true">{{ h.icon }}</span>
+              <button type="button" class="info" (click)="edit(h)">
+                <strong>{{ h.title }}</strong>
+                <small class="muted">{{ meta(h) }}</small>
+              </button>
+              <button class="icon-btn more" type="button" [cdkMenuTriggerFor]="menu" [cdkMenuTriggerData]="{ $implicit: h }" [attr.aria-label]="'Actions for ' + h.title">⋯</button>
+            </li>
+          } @empty {
+            <li class="muted empty-row">
+              Extra habits just for {{ name() }}, on top of the ones above.
+              @if (prevHasOwn() && reviewDismissed()) {
+                <button class="btn btn-ghost small" type="button" (click)="reviewDismissed.set(false)">Review last month</button>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+
+      @if (archived().length) {
+        <div class="card glass list-card archived">
+          <button class="card-head toggle" type="button" (click)="showArchived.set(!showArchived())" [attr.aria-expanded]="showArchived()">
+            <h2>🗄️ Archived ({{ archived().length }})</h2>
+            <span aria-hidden="true">{{ showArchived() ? '▾' : '▸' }}</span>
+          </button>
+          @if (showArchived()) {
+            <ul class="list">
+              @for (h of archived(); track h.id) {
+                <li class="habit">
+                  <span class="ico" aria-hidden="true">{{ h.icon }}</span>
+                  <span class="info"><strong>{{ h.title }}</strong><small class="muted">since {{ h.archivedAt }}</small></span>
+                  <button class="btn btn-ghost small" type="button" (click)="archive(h, false)">Restore</button>
+                  <button class="icon-btn" type="button" (click)="remove(h)" [attr.aria-label]="'Delete ' + h.title">🗑️</button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<ng-template #menu let-h>
+  <div class="action-menu glass" cdkMenu>
+    <button cdkMenuItem (cdkMenuItemTriggered)="edit(h)">✏️ Edit</button>
+    <button cdkMenuItem (cdkMenuItemTriggered)="openHistory(h)">📅 Year in pixels</button>
+    <button cdkMenuItem (cdkMenuItemTriggered)="archive(h, true)">🗄️ Archive</button>
+    <button cdkMenuItem class="danger" (cdkMenuItemTriggered)="remove(h)">🗑️ Delete</button>
+  </div>
+</ng-template>
